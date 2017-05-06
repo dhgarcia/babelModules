@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../src/spinnaker_lip_spikes_receiver/include/spinnakerIOinterface.h
+yarp/os/all.h
+-
+SpynnakerLiveSpikesConnection.h
+-
+
+/home/daniel/Desktop/BBC/spinnakerModules/src/spinnaker_lip_spikes_receiver/src/main.cpp
+spinnakerIOinterface.h
+/home/daniel/Desktop/BBC/spinnakerModules/src/spinnaker_lip_spikes_receiver/src/spinnakerIOinterface.h
+
+/home/daniel/Desktop/BBC/spinnakerModules/src/spinnaker_lip_spikes_receiver/src/spinnakerIOinterface.cpp
+spinnakerIOinterface.h
+/home/daniel/Desktop/BBC/spinnakerModules/src/spinnaker_lip_spikes_receiver/src/spinnakerIOinterface.h
+map
+-
+list
+-
+math.h
+-
+

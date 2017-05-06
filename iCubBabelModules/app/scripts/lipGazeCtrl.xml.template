@@ -1,0 +1,22 @@
+<application>
+<name>lipGazeCtrl</name>
+
+<module>
+    <name>iCubSpeechRecognition.py</name>
+    <deployer>python</deployer>
+    <node>localhost</node>
+</module>
+
+<module>
+  <name> lipGazeCtrl </name>
+  <parameters> --name /lipGazeCtrl --width 32 --height 32 --position true --strict true </parameters>
+  <node>localhost</node>
+  <tag>lipGazeCtrl</tag>
+</module>
+
+<connection>
+    <from>"/spinnakerBoard/salient"</from>
+    <to>"/lipGazeCtrl/lip:i"</to>
+</connection>
+
+</application>
