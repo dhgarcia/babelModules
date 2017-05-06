@@ -1,2 +1,0 @@
-/usr/local/bin/visionSpikesSender
-/usr/local/bin/lipSpikesReceiver
