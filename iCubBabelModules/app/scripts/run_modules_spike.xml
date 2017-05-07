@@ -1,0 +1,153 @@
+<application>
+	<name>va_run_modules_spikes</name>
+
+	<module>
+		<name>yarpdataplayer</name>
+		<node>localhost</node>
+		<tag>yarpdataplayer</tag>
+	</module>
+
+	<module>
+		<name> iCub_SIM </name>
+		<node>localhost</node>
+		<tag>iCub_SIM</tag>
+	</module>
+	<module>
+		<name> iKinGazeCtrl </name>
+		<parameters>--from configSim.ini </parameters>
+		<node>localhost</node>
+		<tag>iKinGazeCtrl</tag>
+	</module>
+
+	<module>
+		<name> yarpdev </name>
+		<parameters>--device grabber --subdevice dragonfly2 --width 320 --height 240 --video_type 1 --white_balance 0.474 0.648 --gain 0.312 --shutter 0.592 --name /icub/cam/left --brightness 0 --DR2 --stamp --guid 00b09d0100b96857 --sharpness 0.5 --hue 0.48 --gamma 0.4 --saturation 0.826 --framerate 30  </parameters>
+		<node>pc104</node>
+		<tag>camera_left</tag>
+	</module>
+
+	<module>
+		<name> yarpdev </name>
+		<parameters>--device grabber --subdevice dragonfly2 --width 320 --height 240 --video_type 1 --white_balance 0.474 0.648 --gain 0.312 --shutter 0.592 --name /icub/cam/right --brightness 0 --DR2 --stamp --guid 00b09d0100b96856 --sharpness 0.5 --hue 0.48 --gamma 0.4 --saturation 0.826 --framerate 30  </parameters>
+		<node>pc104</node>
+		<tag>camera_right</tag>
+	</module>
+
+	<module>
+		<name> lipGazeCtrl </name>
+		<parameters>--width 32 --height 32 </parameters>
+		<node>localhost</node>
+		<tag>lipGazeCtrl</tag>
+	</module>
+
+	<module>
+		<name> namingModule </name>
+		<parameters>--width 32 --height 32 --strict --speech </parameters>
+		<node>localhost</node>
+		<tag>namingModule</tag>
+	</module>
+
+	<module>
+		<name> visionSpikesSender </name>
+		<parameters>--name spinnakerIO --grabber /vision/left/img/hsmask:o --spinnaker true --downsample_width 32 --downsample_height 32 </parameters>
+		<node>localhost</node>
+		<tag>visionSpikesSender</tag>
+	</module>
+
+	<module>
+		<name> lipSpikesReceiver </name>
+		<parameters>--name spinnakerIO </parameters>
+		<node>localhost</node>
+		<tag>lipSpikesReceiver</tag>
+	</module>
+
+	<module>
+		<name> basicVisionStuff </name>
+		<parameters>--name /vision --left --right --mask --strict </parameters>
+		<node>localhost</node>
+		<tag>basicVisionStuff</tag>
+	</module>
+	<module>
+		<name> yarpview </name>
+		<parameters>--name /view/out --x 30 --y 30 --compact </parameters>
+		<node>localhost</node>
+	</module>
+	<module>
+		<name> yarpview </name>
+		<parameters>--name /view/mono --x 350 --y 30 --compact </parameters>
+		<node>localhost</node>
+	</module>
+
+
+
+	<module>
+		<name> python /usr/local/bin/iCubSpeechProduction.py </name>
+		<node>localhost</node>
+		<tag>iCubSpeechProduction</tag>
+	</module>
+	<module>
+		<name> python /usr/local/bin/iCubSpeechRecognition.py </name>
+		<node>localhost</node>
+		<tag>iCubSpeechRecognition</tag>
+	</module>
+
+
+	<connection>
+		<!-- <from>/icubSim/cam/left:o</from> -->
+		<from>/icub/camcalib/left/out</from>
+		<to>/vision/left/img:i</to>
+		<protocol>udp</protocol>
+	</connection>
+	<connection>
+		<from>/vision/left/img/hsmask:o</from>
+		<to>/view/out</to>
+		<protocol>udp</protocol>
+	</connection>
+
+	<!-- <connection>
+		<from>/icubSim/cam/right</from>
+		<from>/icub/camlib/right/out</from>
+		<to>/vision/right/img:i</to>
+		<protocol>udp</protocol>
+	</connection>
+	<connection>
+		<from>/vision/right/img/hsmask:o</from>
+		<to>/view/out</to>
+		<protocol>udp</protocol>
+	</connection> -->
+	<connection>
+		<from>/spinnakerIO/img:o</from>
+		<to>/view/mono</to>
+		<protocol>udp</protocol>
+	</connection>
+	<connection>
+		<from>/vision/left/img/hsmask:o</from>
+		<to>/spinnakerIO/img:i</to>
+		<protocol>udp</protocol>
+	</connection>
+
+	<connection>
+		<from>/speechRecognizer/recog/continuous:o</from>
+		<to>/icubNaming/speech:i</to>
+		<protocol>udp</protocol>
+	</connection>
+	<connection>
+		<from>/icubNaming/speech:o</from>
+		<to>/iSpeak</to>
+		<protocol>udp</protocol>
+	</connection>
+	<connection>
+		<from>/spinnakerBoard/speech</from>
+		<to>/icubNaming/auditory:i</to>
+		<protocol>udp</protocol>
+	</connection>
+
+	<connection>
+		<from>/spinnakerBoard/salient</from>
+		<to>/lipGazeCtrl/lip:i</to>
+		<protocol>udp</protocol>
+	</connection>
+
+
+
+</application>

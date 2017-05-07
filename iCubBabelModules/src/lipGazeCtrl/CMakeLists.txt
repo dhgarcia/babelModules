@@ -7,26 +7,6 @@ SET(MODULENAME lipGazeCtrl)
 # Start a project
 PROJECT(${MODULENAME})
 
-# Find packages
-FIND_PACKAGE(YARP REQUIRED)
-#FIND_PACKAGE(OpenCV REQUIRED)
-LIST(APPEND CMAKE_MODULE_PATH ${YARP_MODULE_PATH})
-INCLUDE(YarpInstallationHelpers)
-
-FIND_PACKAGE(ICUB)
-#ICUBCONTRIB
-FIND_PACKAGE(ICUBcontrib)
-IF(ICUBcontrib_FOUND)
-  LIST(APPEND CMAKE_MODULE_PATH ${ICUBCONTRIB_MODULE_PATH})
-  INCLUDE(ICUBcontribOptions)
-  INCLUDE(ICUBcontribHelpers)
-  icubcontrib_set_default_prefix()
-ELSE(ICUBcontrib_FOUND)
-  message("Warning: ICUBcontrib not FOUND. Make Install may not install to the correct location")
-ENDIF(ICUBcontrib_FOUND)
-
-icubcontrib_add_uninstall_target()
-
 
 set(MY_SRC_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 # Search for source code.
