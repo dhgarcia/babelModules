@@ -15,6 +15,7 @@ xml files are stored as templates on the /app/scripts/ folder (e.g.: /app/script
 - [YARP](https://github.com/robotology/yarp)
 - [icub-contrib-common](https://github.com/robotology/icub-contrib-common)
 - [SpiNNakerIO](https://github.com/dhgarcia/SpiNNakerIO)
+- [event-driven](https://github.com/dhgarcia/event-driven) (ONLY IF YOU ARE USING EVENT DRIVEN CAMERAS IN WHICH CASE IT IS RECOMENDED TO USE THE MODULE IN THE event-driven LIBRARY)
 
 ## Installation
 
