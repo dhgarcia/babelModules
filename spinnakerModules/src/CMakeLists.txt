@@ -7,6 +7,10 @@ option(ENABLE_eventSender "Build events spike sender module" OFF)
 option(ENABLE_spikesSender "Build vision spike sender module" OFF)
 option(ENABLE_lipReceiver "Build lip spikes receiver module" OFF)
 
+option(ENABLE_spikesInterface "Build spinnaker spikes interface module" OFF)
+IF(ENABLE_spikesInterface)
+  add_subdirectory(spinnaker_interface)
+ENDIF(ENABLE_spikesInterface)
 
 IF(ENABLE_eventSender)
   add_subdirectory(spinnaker_event_spikes_sender)
