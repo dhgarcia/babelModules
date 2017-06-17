@@ -64,6 +64,8 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
 
     std::map<std::string, SpikesPopulation*> spikes;
 
+    std::cout << "MAP size:" << spikes.size() << std::endl;
+
     //set the spikes streamers
     yarp::os::Bottle * spikesList = rf.find("spikes").asList();
     if(!spikesList) {
@@ -79,6 +81,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
     }
 
     int nSpikes = spikesList->size() / 3;
+    std::cout << "nSpikes " << nSpikes << std::endl;
 
     //for each spikes open a SpikesPopulation
 
@@ -113,15 +116,17 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
       if (population_type == "audio_injector") {
         int x = populaion_type_list->get(0).asInt();
         int y = populaion_type_list->get(1).asInt();
-        newPopulation = new SpikesInjectorPopulation(label_name, population_type, x, y);
+        //newPopulation = new AudioSpikesInjectorPopulation(label_name, population_type, x, y);
       } else {
-        newPopulation = NULL;//new SpikesPopulation(label_name, population_type);
+        newPopulation = NULL; //new SpikesPopulation(label_name, population_type); //abstract cannot be instantiated
       }
 
       //spikes.push_back(newPopulation);
       spikes[label_name] = newPopulation;
     }
 
+    std::cout << "MAP size:" << spikes.size() << std::endl;
+    spikes["rec"]->setPopulationPort(moduleName, true);
 
 
     char const* local_host = NULL;
@@ -140,6 +145,24 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
 
     bool ioSuccess = false;
 
+    std::vector<char*> SEND_LABELS;
+    std::vector<char*> RECV_LABELS;
+    std::cout << "Spynnaker Interface ... set labels " << std::endl;
+
+    for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
+      std::cout << "Spynnaker Interface ... iterating " << std::endl;
+      std::cout << "Spynnaker Interface ... " << it->first << std::endl;
+      SpikesPopulation * newPopulation = it->second;
+      //std::cout << "Spynnaker Interface ... " << newPopulation->getPopType().c_str() << std::endl;
+      std::string type = newPopulation->getPopType();
+      strcmp(it->second->getPopType().c_str(),"injector");
+      std::cout << "Spynnaker Interface ... comparing " << std::endl;
+      if(strcmp(it->second->getPopType().c_str(),"injector")==0)
+        SEND_LABELS.push_back((char*)it->second->getPopLabel().c_str());
+      if(strcmp(it->second->getPopType().c_str(),"receiver")==0)
+        RECV_LABELS.push_back((char*)it->second->getPopLabel().c_str());
+    }
+
     ioSuccess = initialise(moduleName, spikes, wait, (char*) local_host, local_port, absolute_file_path);
 
     return ioSuccess;
@@ -150,19 +173,27 @@ bool SpinnakerInterface::initialise(std::string spinnName, std::map<std::string,
 {
 
     bool success = false;
+    std::cout << "Spynnaker Interface ... Initialising " << std::endl;
 
     try {
 
       std::vector<char*> SEND_LABELS;
       std::vector<char*> RECV_LABELS;
+      std::cout << "Spynnaker Interface ... set labels " << std::endl;
 
       for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
+        std::cout << "Spynnaker Interface ... iterating " << std::endl;
+        std::cout << "Spynnaker Interface ... " << it->first << std::endl;
+        SpikesPopulation * newPopulation = it->second;
+        //std::cout << "Spynnaker Interface ... " << newPopulation->getPopType().c_str() << std::endl;
+        std::string type = newPopulation->getPopType();
+        strcmp(it->second->getPopType().c_str(),"injector");
+        std::cout << "Spynnaker Interface ... comparing " << std::endl;
         if(strcmp(it->second->getPopType().c_str(),"injector")==0)
           SEND_LABELS.push_back((char*)it->second->getPopLabel().c_str());
         if(strcmp(it->second->getPopType().c_str(),"receiver")==0)
           RECV_LABELS.push_back((char*)it->second->getPopLabel().c_str());
       }
-
 
 
       char* send_labels[SEND_LABELS.size()];
@@ -171,9 +202,11 @@ bool SpinnakerInterface::initialise(std::string spinnName, std::map<std::string,
       std::copy(RECV_LABELS.begin(), RECV_LABELS.end(), receive_labels);
 
       this->connection = new SpynnakerLiveSpikesConnection(RECV_LABELS.size(), receive_labels, SEND_LABELS.size(), send_labels, (char*) local_host, local_port);
+      std::cout << "Spynnaker Interface ... connection " << std::endl;
 
       // Create the spinnaker interface
       this->spikes_interface = new SpikesCallbackInterface(spinnName, spikes, wait);
+      std::cout << "Spynnaker Interface ... interface " << std::endl;
 
       for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
 
@@ -184,6 +217,8 @@ bool SpinnakerInterface::initialise(std::string spinnName, std::map<std::string,
         if( strcmp(it->second->getPopType().c_str(),"receiver")==0 )
           this->connection->add_receive_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
       }
+
+      std::cout << "Spynnaker Interface ... set callbacks " << std::endl;
 
       if (absolute_file_path != NULL) {
         this->connection->set_database(absolute_file_path);
@@ -228,6 +263,7 @@ bool SpinnakerInterface::respond(const yarp::os::Bottle& command, yarp::os::Bott
 /******************************************************************************/
 bool SpinnakerInterface::updateModule()
 {
+  std::cout << "Why? " << std::endl;
     return true;
 }
 

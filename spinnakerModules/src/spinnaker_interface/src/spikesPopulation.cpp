@@ -20,7 +20,7 @@
 /******************************************************************************/
 SpikesPopulation::SpikesPopulation(std::string label, std::string type){
   this->population_label = label;
-  this->type = type;
+  this->population_type = type;
 }
 /******************************************************************************/
 void SpikesPopulation::setPopSize(int x, int y)
@@ -36,25 +36,10 @@ std::string SpikesPopulation::getPopLabel()
 /******************************************************************************/
 std::string SpikesPopulation::getPopType()
 {
-  return this->type;
+  std::cout << population_label << " getting population type: " << population_type << std::endl;
+  return this->population_type;
 }
 /******************************************************************************/
-bool SpikesPopulation::setPopulationPort(std::string moduleName, bool broadcast)
-{
-  //and open the input port
-  //if(strictio) this->setStrict();
-  //this->strictio = strictio;
-  //this->useCallback();
-
-  //yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::open(name + "/img:i");
-
-  if (broadcast) this->spikesPort.open(moduleName + "/" +  this->population_label + ":" + this->type);
-  //this->broadcast = broadcast;
-
-  //spikesPort.open(name + "/img/spikes");
-
-  return true;
-}
 
 
 /******************************************************************************/
@@ -64,6 +49,24 @@ SpikesReceiverPopulation::SpikesReceiverPopulation(std::string label, std::strin
 
 }
 /******************************************************************************/
+bool SpikesReceiverPopulation::setPopulationPort(std::string moduleName, bool broadcast)
+{
+  //and open the input port
+  //if(strictio) this->setStrict();
+  //this->strictio = strictio;
+  //this->useCallback();
+
+  //yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::open(name + "/img:i");
+
+  if (broadcast) this->spikesPort.open(moduleName + "/" +  this->population_label + "/" + this->population_type + ":o");
+  //this->broadcast = broadcast;
+
+  //spikesPort.open(name + "/img/spikes");
+
+  return true;
+}
+/******************************************************************************/
+
 void SpikesReceiverPopulation::spikesToYarpPort(int time, int n_spikes, int* spikes){
 
   yarp::os::Bottle& spikeList = this->spikesPort.prepare();
@@ -88,8 +91,6 @@ void SpikesReceiverPopulation::spikesToSpinnaker(){
 // SPIKES_INJECTOR_POPULATION
 /******************************************************************************/
 SpikesInjectorPopulation::SpikesInjectorPopulation(std::string label, std::string type, int width, int height) : SpikesPopulation(label, type) {
-  //this->population_label = label;
-  //this->type = type;
 
   this->population_size[0]=width;
   this->population_size[1]=height;
@@ -109,6 +110,7 @@ void SpikesInjectorPopulation::spikesToSpinnaker(){
 // EVENT_SPIKES_INJECTOR_POPULATION
 /******************************************************************************/
 EventSpikesInjectorPopulation::EventSpikesInjectorPopulation(std::string label, std::string type, int ev_polarity, int ev_width, int ev_height, int pop_width, int pop_height, bool flip) : SpikesInjectorPopulation(label, type, pop_width, pop_height) {
+  std::cout << "Event Constructor for " << population_label << std::endl;
 
   this->flip = flip;
 
@@ -130,12 +132,12 @@ bool EventSpikesInjectorPopulation::open(const std::string &name, bool strictio)
     this->strictio = strictio;
     this->useCallback();
 
-    yarp::os::BufferedPort< ev::vBottle >::open(name + "/" +  this->population_label + "/" + this->type + ":i");
+    yarp::os::BufferedPort< ev::vBottle >::open(name + "/" +  this->population_label + "/" + this->population_type + ":i");
 
     //if (broadcast) viewerPort.open(name + "/img:o");
     //this->broadcast = broadcast;
 
-    spikesPort.open(name + "/" +  this->population_label + "/" + this->type + ":o");
+    spikesPort.open(name + "/" +  this->population_label + "/" + this->population_type + ":o");
 
     return true;
 }
