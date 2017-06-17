@@ -96,8 +96,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
 
       if (population_type == "receiver") {
         newPopulation = new SpikesReceiverPopulation(label_name, population_type);
-      }
-      if (population_type == "event_injector") {
+      } else if (population_type == "event_injector") {
         int ev_polarity = populaion_type_list->get(0).asInt();
         int ev_width = populaion_type_list->get(1).asInt();
         int ev_height = populaion_type_list->get(2).asInt();
@@ -105,15 +104,13 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
         int pop_height = populaion_type_list->get(4).asInt();
         bool flip = populaion_type_list->get(5).asBool();
         newPopulation = new EventSpikesInjectorPopulation(label_name, population_type, ev_polarity, ev_width, ev_height, pop_width, pop_height, flip);
-      }
-      if (population_type == "vision_injector") {
+      } else if (population_type == "vision_injector") {
         //int img_width = populaion_type_list->get(0).asInt();
         //int img_height = populaion_type_list->get(1).asInt();
         //int pop_width = populaion_type_list->get(2).asInt();
         //int pop_height = populaion_type_list->get(3).asInt();
         //newPopulation = new VisionSpikesInjectorPopulation(label_name, population_type, x, y);
-      }
-      if (population_type == "audio_injector") {
+      } else if (population_type == "audio_injector") {
         int x = populaion_type_list->get(0).asInt();
         int y = populaion_type_list->get(1).asInt();
         //newPopulation = new AudioSpikesInjectorPopulation(label_name, population_type, x, y);

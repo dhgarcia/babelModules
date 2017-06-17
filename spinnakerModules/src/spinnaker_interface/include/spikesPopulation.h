@@ -34,24 +34,26 @@ class SpikesPopulation {
 
 public:
   SpikesPopulation(std::string label, std::string type);
-  virtual ~SpikesPopulation(){};
 
   std::string getPopLabel();
   std::string getPopType();
+
   void setPopSize(int x, int y);
 
+  //virtual bool openPopulationPort(std::string moduleName)=0;
+  virtual bool setPopulationPort(std::string moduleName, bool broadcast)=0;
 
-  virtual bool setPopulationPort(std::string moduleName, bool broadcast){}//=0;
-  virtual void spikesToYarpPort(int time, int n_spikes, int* spikes){}//=0;
-  virtual void spikesToSpinnaker(){}//=0;
+  virtual void spikesToYarpPort(int time, int n_spikes, int* spikes)=0;
+  virtual void spikesToSpinnaker()=0;
 
 protected:
-  int population_size[2];
-
   std::string population_label;
   std::string population_type;
 
-  yarp::os::BufferedPort<yarp::os::Bottle> spikesPort;
+  int population_size[2];
+
+  yarp::os::BufferedPort<yarp::os::Bottle> spikesPort; //this maybe inheritance of the class?
+  //yarp::os::Property population;
 
 };
 
@@ -60,9 +62,9 @@ class SpikesReceiverPopulation : public SpikesPopulation {
 public:
   SpikesReceiverPopulation(std::string label, std::string type);
 
+  bool setPopulationPort(std::string moduleName, bool broadcast);
   void spikesToYarpPort(int time, int n_spikes, int* spikes);
   void spikesToSpinnaker();
-  bool setPopulationPort(std::string moduleName, bool broadcast=true);
 
 private:
 
@@ -73,7 +75,6 @@ class SpikesInjectorPopulation : public SpikesPopulation {
 
 public:
   SpikesInjectorPopulation(std::string label, std::string type, int width, int height);
-  virtual ~SpikesInjectorPopulation(){};
 
   virtual void spikesToYarpPort(int time, int n_spikes, int* spikes);
   virtual void spikesToSpinnaker();

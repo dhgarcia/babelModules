@@ -21,6 +21,7 @@
 SpikesPopulation::SpikesPopulation(std::string label, std::string type){
   this->population_label = label;
   this->population_type = type;
+  std::cout << "Constructor for " << population_label << std::endl;
 }
 /******************************************************************************/
 void SpikesPopulation::setPopSize(int x, int y)
@@ -39,34 +40,15 @@ std::string SpikesPopulation::getPopType()
   std::cout << population_label << " getting population type: " << population_type << std::endl;
   return this->population_type;
 }
-/******************************************************************************/
 
 
 /******************************************************************************/
 // SPIKES_RECEIVER_POPULATION
 /******************************************************************************/
 SpikesReceiverPopulation::SpikesReceiverPopulation(std::string label, std::string type) : SpikesPopulation(label, type) {
-
+  std::cout << "Receiver Constructor for " << label << std::endl;
 }
 /******************************************************************************/
-bool SpikesReceiverPopulation::setPopulationPort(std::string moduleName, bool broadcast)
-{
-  //and open the input port
-  //if(strictio) this->setStrict();
-  //this->strictio = strictio;
-  //this->useCallback();
-
-  //yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::open(name + "/img:i");
-
-  if (broadcast) this->spikesPort.open(moduleName + "/" +  this->population_label + "/" + this->population_type + ":o");
-  //this->broadcast = broadcast;
-
-  //spikesPort.open(name + "/img/spikes");
-
-  return true;
-}
-/******************************************************************************/
-
 void SpikesReceiverPopulation::spikesToYarpPort(int time, int n_spikes, int* spikes){
 
   yarp::os::Bottle& spikeList = this->spikesPort.prepare();
@@ -86,11 +68,31 @@ void SpikesReceiverPopulation::spikesToYarpPort(int time, int n_spikes, int* spi
 void SpikesReceiverPopulation::spikesToSpinnaker(){
 
 }
+/******************************************************************************/
+bool SpikesReceiverPopulation::setPopulationPort(std::string moduleName, bool broadcast)
+{
+  //and open the input port
+  //if(strictio) this->setStrict();
+  //this->strictio = strictio;
+  //this->useCallback();
+
+  //yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::open(name + "/img:i");
+
+  if (broadcast) this->spikesPort.open(moduleName + "/" +  this->population_label + ":" + this->population_type);
+  //this->broadcast = broadcast;
+
+  //spikesPort.open(name + "/img/spikes");
+
+  return true;
+}
 
 /******************************************************************************/
 // SPIKES_INJECTOR_POPULATION
 /******************************************************************************/
 SpikesInjectorPopulation::SpikesInjectorPopulation(std::string label, std::string type, int width, int height) : SpikesPopulation(label, type) {
+  //this->population_label = label;
+  //this->population_type = type;
+  std::cout << "Injector Constructor for " << population_label << std::endl;
 
   this->population_size[0]=width;
   this->population_size[1]=height;
