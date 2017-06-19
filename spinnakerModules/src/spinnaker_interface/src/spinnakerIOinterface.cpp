@@ -18,37 +18,6 @@
 #include <math.h>
 
 
-// Create a 2D vector to map x,y pos to a neuron ID
-std::vector<std::vector<int> > createIDMap(int height, int width){
-
-  std::vector<std::vector<int> > IDMap;
-  int current_nrn = 0;
-  // set 'row' dimension
-  IDMap.resize(height);
-
-  // set 'column' dimension for each row and
-  // set the neuron ID for each element
-
-  // When assigning neuron IDs we have to be careful
-  // to match the coordinate system of the network.
-  // For the PyNN version nrn 0 is top left hand corner
-  // and increments across the row and down the column
-  // This matches exactly the image x,y coordinates
-
-  // i is the row coord and j is the x coord
-  for( int i=0; i< height; i++){
-    IDMap[i].resize(width);
-    for(int j=0; j < width; j++){
-      //printf("%d %d %d\n", i,j, current_nrn);
-      IDMap[i][j] = current_nrn;
-      current_nrn++;
-    }
-  }
-
-
-  return IDMap;
-}
-
 /******************************************************************************/
 // SpinnakerInterface
 /******************************************************************************/
@@ -58,13 +27,18 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
     moduleName = rf.check("name", yarp::os::Value("/spinnakerIO")).asString();
     setName(moduleName.c_str());
 
+    if ( !handlePort.open(getName()) ) {
+      std::cout << getName() << ":unale to open port" << '\n';
+      return false;
+    }
+    attach(handlePort);
+
+
     bool wait = rf.check("wait_for_start") &&
             rf.check("wait_for_start", yarp::os::Value(true)).asBool();
 
 
     std::map<std::string, SpikesPopulation*> spikes;
-
-    std::cout << "MAP size:" << spikes.size() << std::endl;
 
     //set the spikes streamers
     yarp::os::Bottle * spikesList = rf.find("spikes").asList();
@@ -81,7 +55,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
     }
 
     int nSpikes = spikesList->size() / 3;
-    std::cout << "nSpikes " << nSpikes << std::endl;
+    std::cout << "# of Spike Populations " << nSpikes << std::endl;
 
     //for each spikes open a SpikesPopulation
 
@@ -103,17 +77,17 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
         int pop_width = populaion_type_list->get(3).asInt();
         int pop_height = populaion_type_list->get(4).asInt();
         bool flip = populaion_type_list->get(5).asBool();
-        newPopulation = new EventSpikesInjectorPopulation(label_name, population_type, ev_polarity, ev_width, ev_height, pop_width, pop_height, flip);
+        newPopulation = new EventSpikesInjectorPopulation(label_name, "injector", ev_polarity, ev_width, ev_height, pop_width, pop_height, flip);
       } else if (population_type == "vision_injector") {
-        //int img_width = populaion_type_list->get(0).asInt();
-        //int img_height = populaion_type_list->get(1).asInt();
-        //int pop_width = populaion_type_list->get(2).asInt();
-        //int pop_height = populaion_type_list->get(3).asInt();
-        //newPopulation = new VisionSpikesInjectorPopulation(label_name, population_type, x, y);
+        int img_width = populaion_type_list->get(0).asInt();
+        int img_height = populaion_type_list->get(1).asInt();
+        int pop_width = populaion_type_list->get(2).asInt();
+        int pop_height = populaion_type_list->get(3).asInt();
+        newPopulation = new VisionSpikesInjectorPopulation(label_name, "injector", img_width, img_height, pop_width, pop_height);
       } else if (population_type == "audio_injector") {
         int x = populaion_type_list->get(0).asInt();
         int y = populaion_type_list->get(1).asInt();
-        //newPopulation = new AudioSpikesInjectorPopulation(label_name, population_type, x, y);
+        newPopulation = new AudioSpikesInjectorPopulation(label_name, "injector", x, y);
       } else {
         newPopulation = NULL; //new SpikesPopulation(label_name, population_type); //abstract cannot be instantiated
       }
@@ -121,9 +95,6 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
       //spikes.push_back(newPopulation);
       spikes[label_name] = newPopulation;
     }
-
-    std::cout << "MAP size:" << spikes.size() << std::endl;
-    spikes["rec"]->setPopulationPort(moduleName, true);
 
 
     char const* local_host = NULL;
@@ -141,24 +112,6 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
               << std::endl;
 
     bool ioSuccess = false;
-
-    std::vector<char*> SEND_LABELS;
-    std::vector<char*> RECV_LABELS;
-    std::cout << "Spynnaker Interface ... set labels " << std::endl;
-
-    for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
-      std::cout << "Spynnaker Interface ... iterating " << std::endl;
-      std::cout << "Spynnaker Interface ... " << it->first << std::endl;
-      SpikesPopulation * newPopulation = it->second;
-      //std::cout << "Spynnaker Interface ... " << newPopulation->getPopType().c_str() << std::endl;
-      std::string type = newPopulation->getPopType();
-      strcmp(it->second->getPopType().c_str(),"injector");
-      std::cout << "Spynnaker Interface ... comparing " << std::endl;
-      if(strcmp(it->second->getPopType().c_str(),"injector")==0)
-        SEND_LABELS.push_back((char*)it->second->getPopLabel().c_str());
-      if(strcmp(it->second->getPopType().c_str(),"receiver")==0)
-        RECV_LABELS.push_back((char*)it->second->getPopLabel().c_str());
-    }
 
     ioSuccess = initialise(moduleName, spikes, wait, (char*) local_host, local_port, absolute_file_path);
 
@@ -179,19 +132,11 @@ bool SpinnakerInterface::initialise(std::string spinnName, std::map<std::string,
       std::cout << "Spynnaker Interface ... set labels " << std::endl;
 
       for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
-        std::cout << "Spynnaker Interface ... iterating " << std::endl;
-        std::cout << "Spynnaker Interface ... " << it->first << std::endl;
-        SpikesPopulation * newPopulation = it->second;
-        //std::cout << "Spynnaker Interface ... " << newPopulation->getPopType().c_str() << std::endl;
-        std::string type = newPopulation->getPopType();
-        strcmp(it->second->getPopType().c_str(),"injector");
-        std::cout << "Spynnaker Interface ... comparing " << std::endl;
         if(strcmp(it->second->getPopType().c_str(),"injector")==0)
           SEND_LABELS.push_back((char*)it->second->getPopLabel().c_str());
         if(strcmp(it->second->getPopType().c_str(),"receiver")==0)
           RECV_LABELS.push_back((char*)it->second->getPopLabel().c_str());
       }
-
 
       char* send_labels[SEND_LABELS.size()];
       std::copy(SEND_LABELS.begin(), SEND_LABELS.end(), send_labels);
@@ -260,7 +205,6 @@ bool SpinnakerInterface::respond(const yarp::os::Bottle& command, yarp::os::Bott
 /******************************************************************************/
 bool SpinnakerInterface::updateModule()
 {
-  std::cout << "Why? " << std::endl;
     return true;
 }
 
@@ -293,7 +237,7 @@ SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std:
 void SpikesCallbackInterface::init_population(char *label, int n_neurons, float run_time_ms, float machine_time_step_ms)
 {
   std::string label_str = std::string(label);
-  //add n_neurons, run_time_ms, machine_time_step_ms to a property find by label
+  spikes_structure[label_str]->initPopulation(n_neurons, run_time_ms, machine_time_step_ms);
   spikes_structure[label_str]->setPopulationPort(spinInterfaceName, true);
 
 
@@ -316,22 +260,19 @@ void SpikesCallbackInterface::spikes_start(char *label, SpynnakerLiveSpikesConne
 
   std::string label_str = std::string(label);
 
-  //spikes_structure[label_str]->read();
+  while (true) {
+    n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker();
+    if (!n_neuron_ids.empty()) {
+      //pthread_mutex_lock(&(this->start_mutex));
+      this->simulation_started = true;
+      connection->send_spikes(label, n_neuron_ids, send_full_keys);
+      //pthread_mutex_unlock(&(this->start_mutex));
+    }
+    n_neuron_ids.clear();
+  }
+  //n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker();
 
-  //read a port
-  //from label on spikes_structure read the port
-  // from the bottle that read the port pass the neuron ids
-  // yarp::os::Bottle *bottle;
-  // bottle = spikes_structure[label]->spikesPort.read(); //??
-  // bottle >> n_neuron_ids
 
-  //no mutex and endless while loop while(simulation_started)
-  // send_spikes
-
-  pthread_mutex_lock(&(this->start_mutex));
-  this->simulation_started = true;
-  connection->send_spikes(label, n_neuron_ids, send_full_keys);
-  pthread_mutex_unlock(&(this->start_mutex));
 }
 /******************************************************************************/
 void SpikesCallbackInterface::receive_spikes(char *label, int time, int n_spikes, int* spikes)
@@ -343,200 +284,5 @@ void SpikesCallbackInterface::receive_spikes(char *label, int time, int n_spikes
 }
 
 
-/******************************************************************************/
-// SPINNAKER_IO - SENDER
-/******************************************************************************/
-
-SpikeSenderInterface::SpikeSenderInterface(std::string imgPortName, std::string spPortName, int width, int height, int d_width, int d_height, bool isFlip){
-  this->imagePortName = imgPortName;
-  this->spikePortName = spPortName;
-
-  //here we should initialise the module
-  this->source_height = height; //240;//128; //256;
-  this->source_width = width; //304;//128; //256;
-  this->downsample_width = d_width;
-  this->downsample_height = d_height;
-  //this->polarity = desired_polarity;
-
-  this->flip = isFlip;
-
-  this->InputIDMap = createIDMap(d_height, d_width);
-}
-
-void SpikeSenderInterface::spikes_start(char *label, SpynnakerLiveSpikesConnection *connection){
-  std::vector<int> n_neuron_ids; //send_spikes parameter
-  bool send_full_keys=false; //send_spikes parameter
-
-  yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> > spikesPort;
-  spikesPort.open(spikePortName + ":i"); //get address parameter
-  yarp::os::Network::connect(this->imagePortName.c_str(), this->spikePortName + ":i");
-
-  yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> > viewerPort;
-  viewerPort.open(spikePortName + ":o"); //get address parameter
-
-  yarp::os::BufferedPort<yarp::os::Bottle> spikeOutPort;
-  spikeOutPort.open(spikePortName + "/spikes"); //get address parameter
-
-  // Yarp images
-  yarp::sig::ImageOf<yarp::sig::PixelBgr> *trackImage;
-  //yarp::sig::ImageOf<yarp::sig::PixelBgr> outImage;
-
-  while (true) {
-    //read the port
-    trackImage = spikesPort.read(); //??
-
-    if (trackImage!=NULL) { // check we actually got something
-
-      cv::Mat outImage = cv::cvarrToMat((IplImage *)trackImage->getIplImage());
-      cv::resize(outImage, outImage, cv::Size(downsample_width, downsample_height));
-      /// Convert the image to Gray
-      cv::cvtColor( outImage, outImage, CV_BGR2GRAY );
-      cv::threshold(outImage, outImage, 0, 255, cv::THRESH_BINARY);
-      // Have to wrap OpenCV images back to yarp images first
-      yarp::sig::ImageOf<yarp::sig::PixelBgr>& yarpViewImage = viewerPort.prepare();
-      IplImage iplFrame = IplImage( outImage );
-      yarpViewImage.wrapIplImage(&iplFrame);
-      // Write image to YARP viewer port and also out to data port
-      viewerPort.write();
-
-      // prepare the ports for sending
-      yarp::os::Bottle& spikeLumList = spikeOutPort.prepare();
-      // Push the Neuron IDs of 'on' pixels to vector.
-      for (int x=0; x<downsample_width; x++) {
-        for (int y=0; y<downsample_height; y++) {
-          yarp::sig::PixelBgr& monopixel = yarpViewImage.pixel(x,y);
-          if (monopixel.r > 0 && monopixel.b > 0 && monopixel.g > 0 ) {
-            // The pixel is ON, so get neuron ID and push onto vector
-            int neuronID = InputIDMap[y][x];
-            spikeLumList.addInt(neuronID);
-            n_neuron_ids.push_back(neuronID);
-          }
-        } // y pix loop
-      } // x pix loop
-      //if (first) std::cout << "Length of lum spike list is " << spikeLumList.size() << std::endl;
-      //spikeOutPort.setStrict();
-      spikeOutPort.write();
-      spikeLumList.clear();
-
-      connection->send_spikes(label, n_neuron_ids, send_full_keys);
-      n_neuron_ids.clear();
-    }
-
-  } //while loop
-
-
-}
-
-/******************************************************************************/
-
-
-
-/******************************************************************************/
-// SPINNAKER_IO - RECEIVER
-/******************************************************************************/
-
-SpikeReceiverInterface::SpikeReceiverInterface(std::string spPortName, std::string PortName){
-  this->portSpikesReceive = spPortName;
-  this->portName = PortName;
-
-  this->spikesPort.open(this->portSpikesReceive.c_str()); //get address parameter
-  yarp::os::Network::connect(this->portSpikesReceive.c_str(), this->portName.c_str());
-}
-
-void SpikeReceiverInterface::receive_spikes(char *label, int time, int n_spikes, int* spikes){
-
-    yarp::os::Bottle& spikeList = this->spikesPort.prepare();
-
-    for (int neuron_id_position = 0;  neuron_id_position < n_spikes; neuron_id_position++)
-    {
-      std::cout << "Received spike at time" << time << ", from " << label << " - " << spikes[neuron_id_position] << std::endl;
-      spikeList.addInt(spikes[neuron_id_position]);
-    }
-
-    //std::cout << "Length of receive spike list is " << spikeList.size() << std::endl;
-    this->spikesPort.write();
-    spikeList.clear();
-}
-
-/******************************************************************************/
-// VISION STUFF
-/******************************************************************************/
-
-visionSpikeSender::visionSpikeSender(int width, int height){
-  InputIDMap = createIDMap(height, width);
-  downsample_width = width;
-  downsample_height = height;
-}
-
-/******************************************************************************/
-bool visionSpikeSender::open(const std::string &name, bool strictio, bool broadcast)
-{
-    //and open the input port
-    if(strictio) this->setStrict();
-    this->strictio = strictio;
-    this->useCallback();
-
-    yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::open(name + "/img:i");
-
-    if (broadcast) viewerPort.open(name + "/img:o");
-    this->broadcast = broadcast;
-
-    outPort.open(name + "/img/spikes");
-
-    return true;
-}
-
-/******************************************************************************/
-void visionSpikeSender::close()
-{
-  outPort.close();
-  if (broadcast) viewerPort.close();
-  yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelBgr> >::close();
-  //remember to also deallocate any memory allocated by this class
-}
-
-/******************************************************************************/
-void visionSpikeSender::interrupt()
-{
-  outPort.interrupt();
-  if (broadcast) viewerPort.interrupt();
-  yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelBgr> >::interrupt();
-}
-
-/******************************************************************************/
-void visionSpikeSender::onRead(yarp::sig::ImageOf<yarp::sig::PixelBgr> &frame)
-{
-  cv::Mat img = cv::cvarrToMat((IplImage *)frame.getIplImage());
-  cv::resize(img, img, cv::Size(downsample_width, downsample_height));
-  /// Convert the image to Gray
-  cv::cvtColor( img, img, CV_BGR2GRAY );
-  cv::threshold( img, img, 0, 255, cv::THRESH_BINARY);
-  // Have to wrap OpenCV images back to yarp images first
-  yarp::sig::ImageOf<yarp::sig::PixelBgr>& yarpViewImage = viewerPort.prepare();
-  IplImage iplFrame = IplImage( img );
-  yarpViewImage.wrapIplImage(&iplFrame);
-  // Write image to YARP viewer port and also out to data port
-  viewerPort.write();
-
-  // prepare the ports for sending
-  yarp::os::Bottle& spikeLumList = outPort.prepare();
-  // Push the Neuron IDs of 'on' pixels to vector.
-  for (int x=0; x<downsample_width; x++) {
-    for (int y=0; y<downsample_height; y++) {
-      yarp::sig::PixelBgr& monopixel = yarpViewImage.pixel(x,y);
-      if (monopixel.r > 0 && monopixel.b > 0 && monopixel.g > 0 ) {
-        // The pixel is ON, so get neuron ID and push onto vector
-        int neuronID = InputIDMap[y][x];
-        spikeLumList.addInt(neuronID);
-      }
-    } // y pix loop
-  } // x pix loop
-  //if (first) std::cout << "Length of lum spike list is " << spikeLumList.size() << std::endl;
-  //send on the processed image
-  if(strictio) outPort.writeStrict();
-  else outPort.write();
-  spikeLumList.clear();
-
-}
 
 //empty line to make gcc happy

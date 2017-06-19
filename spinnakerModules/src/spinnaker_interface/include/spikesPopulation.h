@@ -39,20 +39,24 @@ public:
   std::string getPopType();
 
   void setPopSize(int x, int y);
+  void initPopulation(int n_neurons, float run_time_ms, float machine_time_step_ms);
 
   //virtual bool openPopulationPort(std::string moduleName)=0;
   virtual bool setPopulationPort(std::string moduleName, bool broadcast)=0;
 
   virtual void spikesToYarpPort(int time, int n_spikes, int* spikes)=0;
-  virtual void spikesToSpinnaker()=0;
+  virtual std::vector<int> spikesToSpinnaker()=0;
 
 protected:
   std::string population_label;
   std::string population_type;
 
   int population_size[2];
+  int n_neurons;
+  float run_time_ms;
+  float machine_time_step_ms;
 
-  yarp::os::BufferedPort<yarp::os::Bottle> spikesPort; //this maybe inheritance of the class?
+  yarp::os::BufferedPort<yarp::os::Bottle> spikesPort;
   //yarp::os::Property population;
 
 };
@@ -64,7 +68,7 @@ public:
 
   bool setPopulationPort(std::string moduleName, bool broadcast);
   void spikesToYarpPort(int time, int n_spikes, int* spikes);
-  void spikesToSpinnaker();
+  virtual std::vector<int> spikesToSpinnaker();
 
 private:
 
@@ -77,7 +81,7 @@ public:
   SpikesInjectorPopulation(std::string label, std::string type, int width, int height);
 
   virtual void spikesToYarpPort(int time, int n_spikes, int* spikes);
-  virtual void spikesToSpinnaker();
+  std::vector<int> spikesToSpinnaker();
 
 private:
 
@@ -91,7 +95,7 @@ public:
 
   bool setPopulationPort(std::string moduleName, bool strictio=true);
   //virtual void spikesToYarpPort(int time, int n_spikes, int* spikes);
-  //void spikesToSpinnaker();
+  //std::vector<int> spikesToSpinnaker();
 
   bool    open(const std::string &name, bool strictio);
   void    close();
@@ -110,6 +114,61 @@ private:
 
 };
 
+
+class VisionSpikesInjectorPopulation : public SpikesInjectorPopulation, public yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> > {
+
+public:
+  VisionSpikesInjectorPopulation(std::string label, std::string type, int v_width, int v_height, int pop_width, int pop_height);
+
+  bool setPopulationPort(std::string moduleName, bool strictio=true);
+  //virtual void spikesToYarpPort(int time, int n_spikes, int* spikes);
+  //std::vector<int> spikesToSpinnaker();
+
+  bool    open(const std::string &name, bool strictio, bool broadcast=true);
+  void    close();
+  void    interrupt();
+  //this is the entry point to your main functionality
+  void    onRead(yarp::sig::ImageOf<yarp::sig::PixelBgr> &bot);
+
+private:
+
+  //bool flip;
+  bool strictio;
+  bool broadcast;
+
+  //int v_polarity;
+  int v_width;
+  int v_height;
+
+  // Create a 2D vector to map x,y pos to a neuron ID
+  std::vector<std::vector<int> > createIDMap(int height, int width);
+  std::vector<std::vector<int> > InputIDMap;
+  
+  yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> > viewerPort;
+
+};
+
+
+class AudioSpikesInjectorPopulation : public SpikesInjectorPopulation, public yarp::os::BufferedPort< yarp::os::Bottle > {
+
+public:
+  AudioSpikesInjectorPopulation(std::string label, std::string type, int pop_width, int pop_height);
+
+  bool setPopulationPort(std::string moduleName, bool strictio=true);
+  //virtual void spikesToYarpPort(int time, int n_spikes, int* spikes);
+  //std::vector<int> spikesToSpinnaker();
+
+  bool    open(const std::string &name, bool strictio);
+  void    close();
+  void    interrupt();
+  //this is the entry point to your main functionality
+  void    onRead(yarp::os::Bottle &bot);
+
+private:
+
+  bool strictio;
+
+};
 
 
 

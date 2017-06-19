@@ -30,6 +30,14 @@ void SpikesPopulation::setPopSize(int x, int y)
   this->population_size[1]=y;
 }
 /******************************************************************************/
+void SpikesPopulation::initPopulation(int n_neurons, float run_time_ms, float machine_time_step_ms)
+{
+  this->n_neurons = n_neurons;
+  this->run_time_ms = run_time_ms;
+  this->machine_time_step_ms = machine_time_step_ms;
+}
+
+/******************************************************************************/
 std::string SpikesPopulation::getPopLabel()
 {
   return this->population_label;
@@ -37,7 +45,7 @@ std::string SpikesPopulation::getPopLabel()
 /******************************************************************************/
 std::string SpikesPopulation::getPopType()
 {
-  std::cout << population_label << " getting population type: " << population_type << std::endl;
+  //std::cout << population_label << " getting population type: " << population_type << std::endl;
   return this->population_type;
 }
 
@@ -65,8 +73,8 @@ void SpikesReceiverPopulation::spikesToYarpPort(int time, int n_spikes, int* spi
 
 }
 /******************************************************************************/
-void SpikesReceiverPopulation::spikesToSpinnaker(){
-
+std::vector<int> SpikesReceiverPopulation::spikesToSpinnaker(){
+  return std::vector<int>();
 }
 /******************************************************************************/
 bool SpikesReceiverPopulation::setPopulationPort(std::string moduleName, bool broadcast)
@@ -103,8 +111,24 @@ void SpikesInjectorPopulation::spikesToYarpPort(int time, int n_spikes, int* spi
 
 }
 /******************************************************************************/
-void SpikesInjectorPopulation::spikesToSpinnaker(){
+std::vector<int> SpikesInjectorPopulation::spikesToSpinnaker(){
 
+  std::vector<int> n_neuron_ids;
+  yarp::os::Bottle *bottle = spikesPort.read();
+
+  int n_spikes = bottle->size();
+  // get the item back from the Bottle
+  for (int neuron_id_position = 0;  neuron_id_position < n_spikes; neuron_id_position++)
+  {
+    yarp::os::Value tmpVal = bottle->pop();
+    // Convert to integer neuron ID
+    int nrnId = tmpVal.asInt();
+    n_neuron_ids.push_back(nrnId);
+  }
+  // clear the Bottle
+  bottle->clear();
+
+  return n_neuron_ids;
 }
 /******************************************************************************/
 
@@ -193,6 +217,209 @@ void EventSpikesInjectorPopulation::onRead(ev::vBottle &bot)
     //std::cout << (int)(v->x) << " " << (int)(v->y) << " " << neuronID << std::endl;//<< label << " ID:: " << neuronID << std::endl;
   }
 
+  //connection->send_spikes(label, n_neuron_ids, send_full_keys);
+  //n_neuron_ids.clear();
+
+  //send on the processed image
+  if(strictio) spikesPort.writeStrict();
+  else spikesPort.write();
+  spikeList.clear();
+
+}
+
+
+/******************************************************************************/
+// VISION_SPIKES_INJECTOR_POPULATION
+/******************************************************************************/
+VisionSpikesInjectorPopulation::VisionSpikesInjectorPopulation(std::string label, std::string type, int v_width, int v_height, int pop_width, int pop_height) : SpikesInjectorPopulation(label, type, pop_width, pop_height) {
+  std::cout << "Vision Constructor for " << population_label << std::endl;
+
+  //this->flip = flip;
+
+  //this->ev_polarity = ev_polarity;
+  this->v_width = v_width;
+  this->v_height = v_height;
+
+  this->InputIDMap = createIDMap(v_height, v_width);
+}
+/******************************************************************************/
+bool VisionSpikesInjectorPopulation::setPopulationPort(std::string moduleName, bool strictio)
+{
+  return this->open(moduleName, strictio);
+}
+/******************************************************************************/
+bool VisionSpikesInjectorPopulation::open(const std::string &name, bool strictio, bool broadcast)
+{
+    //and open the input port
+    if(strictio) this->setStrict();
+    this->strictio = strictio;
+    this->useCallback();
+
+    yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::open(name + "/" +  this->population_label + "/" + this->population_type + ":i");
+
+    if (broadcast) viewerPort.open(name + "/" +  this->population_label + "/" + this->population_type + ":image");
+    this->broadcast = broadcast;
+
+    spikesPort.open(name + "/" +  this->population_label + "/" + this->population_type + ":o");
+
+    return true;
+}
+
+/******************************************************************************/
+void VisionSpikesInjectorPopulation::close()
+{
+  spikesPort.close();
+  if (broadcast) viewerPort.close();
+  yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::close();
+  //remember to also deallocate any memory allocated by this class
+}
+
+/******************************************************************************/
+void VisionSpikesInjectorPopulation::interrupt()
+{
+  spikesPort.interrupt();
+  if (broadcast) viewerPort.interrupt();
+  yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::interrupt();
+}
+
+/******************************************************************************/
+void VisionSpikesInjectorPopulation::onRead(yarp::sig::ImageOf<yarp::sig::PixelBgr> &bot)
+{
+
+  cv::Mat img = cv::cvarrToMat((IplImage *)bot.getIplImage());
+  cv::resize(img, img, cv::Size(population_size[0], population_size[1]));
+  /// Convert the image to Gray
+  cv::cvtColor( img, img, CV_BGR2GRAY );
+  cv::threshold( img, img, 0, 255, cv::THRESH_BINARY);
+  // Have to wrap OpenCV images back to yarp images first
+  yarp::sig::ImageOf<yarp::sig::PixelBgr>& yarpViewImage = viewerPort.prepare();
+  //if (broadcast) yarpViewImage = viewerPort.prepare();
+  IplImage iplFrame = IplImage( img );
+  yarpViewImage.wrapIplImage(&iplFrame);
+  // Write image to YARP viewer port and also out to data port
+  if (broadcast) viewerPort.write();
+
+  // prepare the ports for sending
+  yarp::os::Bottle& spikeList = spikesPort.prepare();
+  // Push the Neuron IDs of 'on' pixels to vector.
+  for (int x=0; x<population_size[0]; x++) {
+    for (int y=0; y<population_size[1]; y++) {
+      yarp::sig::PixelBgr& monopixel = yarpViewImage.pixel(x,y);
+      if (monopixel.r > 0 && monopixel.b > 0 && monopixel.g > 0 ) {
+        // The pixel is ON, so get neuron ID and push onto vector
+        int neuronID = InputIDMap[y][x];
+        spikeList.addInt(neuronID);
+      }
+    } // y pix loop
+  } // x pix loop
+
+
+  //connection->send_spikes(label, n_neuron_ids, send_full_keys);
+  //n_neuron_ids.clear();
+
+  //send on the processed image
+  if(strictio) spikesPort.writeStrict();
+  else spikesPort.write();
+  spikeList.clear();
+
+}
+
+/******************************************************************************/
+std::vector<std::vector<int> > VisionSpikesInjectorPopulation::createIDMap(int height, int width){
+
+  std::vector<std::vector<int> > IDMap;
+  int current_nrn = 0;
+  // set 'row' dimension
+  IDMap.resize(height);
+
+  // set 'column' dimension for each row and
+  // set the neuron ID for each element
+  // When assigning neuron IDs we have to be careful
+  // to match the coordinate system of the network.
+  // For the PyNN version nrn 0 is top left hand corner
+  // and increments across the row and down the column
+  // This matches exactly the image x,y coordinates
+
+  // i is the row coord and j is the x coord
+  for( int i=0; i< height; i++){
+    IDMap[i].resize(width);
+    for(int j=0; j < width; j++){
+      //printf("%d %d %d\n", i,j, current_nrn);
+      IDMap[i][j] = current_nrn;
+      current_nrn++;
+    }
+  }
+
+  return IDMap;
+}
+
+
+
+/******************************************************************************/
+// AUDIO_SPIKES_INJECTOR_POPULATION
+/******************************************************************************/
+AudioSpikesInjectorPopulation::AudioSpikesInjectorPopulation(std::string label, std::string type, int pop_width, int pop_height) : SpikesInjectorPopulation(label, type, pop_width, pop_height) {
+  std::cout << "Audio Constructor for " << population_label << std::endl;
+
+}
+/******************************************************************************/
+bool AudioSpikesInjectorPopulation::setPopulationPort(std::string moduleName, bool strictio)
+{
+  return this->open(moduleName, strictio);
+}
+/******************************************************************************/
+bool AudioSpikesInjectorPopulation::open(const std::string &name, bool strictio)
+{
+    //and open the input port
+    if(strictio) this->setStrict();
+    this->strictio = strictio;
+    this->useCallback();
+
+    yarp::os::BufferedPort< yarp::os::Bottle >::open(name + "/" +  this->population_label + "/" + this->population_type + ":i");
+
+    //if (broadcast) viewerPort.open(name + "/img:o");
+    //this->broadcast = broadcast;
+
+    spikesPort.open(name + "/" +  this->population_label + "/" + this->population_type + ":o");
+
+    return true;
+}
+
+/******************************************************************************/
+void AudioSpikesInjectorPopulation::close()
+{
+  spikesPort.close();
+  //if (broadcast) spikesPort.close();
+  yarp::os::BufferedPort< yarp::os::Bottle >::close();
+  //remember to also deallocate any memory allocated by this class
+}
+
+/******************************************************************************/
+void AudioSpikesInjectorPopulation::interrupt()
+{
+  spikesPort.interrupt();
+  //if (broadcast) spikesPort.interrupt();
+  yarp::os::BufferedPort< yarp::os::Bottle >::interrupt();
+}
+
+/******************************************************************************/
+void AudioSpikesInjectorPopulation::onRead(yarp::os::Bottle &bot)
+{
+
+  // prepare the ports for sending
+  yarp::os::Bottle& spikeList = spikesPort.prepare();
+
+  spikeList.copy(bot);
+
+  /*int botSize = bot.size();
+  // get the item back from the Bottle
+  for (int i=0; i< botSize; i++){
+    //std::cout << "Item " << i << std::endl;
+    yarp::os::Value tmpVal = bot.pop();
+    // Convert to integer neuron ID
+    int neuronID = tmpVal.asInt();
+    spikeList.addInt(neuronID);
+  }*/
   //connection->send_spikes(label, n_neuron_ids, send_full_keys);
   //n_neuron_ids.clear();
 
