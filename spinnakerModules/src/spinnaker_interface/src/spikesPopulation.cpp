@@ -21,7 +21,6 @@
 SpikesPopulation::SpikesPopulation(std::string label, std::string type){
   this->population_label = label;
   this->population_type = type;
-  std::cout << "Constructor for " << population_label << std::endl;
 }
 /******************************************************************************/
 void SpikesPopulation::setPopSize(int x, int y)
@@ -54,7 +53,7 @@ std::string SpikesPopulation::getPopType()
 // SPIKES_RECEIVER_POPULATION
 /******************************************************************************/
 SpikesReceiverPopulation::SpikesReceiverPopulation(std::string label, std::string type) : SpikesPopulation(label, type) {
-  std::cout << "Receiver Constructor for " << label << std::endl;
+
 }
 /******************************************************************************/
 void SpikesReceiverPopulation::spikesToYarpPort(int time, int n_spikes, int* spikes){
@@ -100,7 +99,6 @@ bool SpikesReceiverPopulation::setPopulationPort(std::string moduleName, bool br
 SpikesInjectorPopulation::SpikesInjectorPopulation(std::string label, std::string type, int width, int height) : SpikesPopulation(label, type) {
   //this->population_label = label;
   //this->population_type = type;
-  std::cout << "Injector Constructor for " << population_label << std::endl;
 
   this->population_size[0]=width;
   this->population_size[1]=height;
@@ -136,7 +134,6 @@ std::vector<int> SpikesInjectorPopulation::spikesToSpinnaker(){
 // EVENT_SPIKES_INJECTOR_POPULATION
 /******************************************************************************/
 EventSpikesInjectorPopulation::EventSpikesInjectorPopulation(std::string label, std::string type, int ev_polarity, int ev_width, int ev_height, int pop_width, int pop_height, bool flip) : SpikesInjectorPopulation(label, type, pop_width, pop_height) {
-  std::cout << "Event Constructor for " << population_label << std::endl;
 
   this->flip = flip;
 
@@ -159,6 +156,8 @@ bool EventSpikesInjectorPopulation::open(const std::string &name, bool strictio)
     this->useCallback();
 
     yarp::os::BufferedPort< ev::vBottle >::open(name + "/" +  this->population_label + "/" + this->population_type + ":i");
+
+    std::cout << "Open port " << name << "/" << this->population_label << "/" << this->population_type << ":i" << std::endl;
 
     //if (broadcast) viewerPort.open(name + "/img:o");
     //this->broadcast = broadcast;
@@ -232,7 +231,6 @@ void EventSpikesInjectorPopulation::onRead(ev::vBottle &bot)
 // VISION_SPIKES_INJECTOR_POPULATION
 /******************************************************************************/
 VisionSpikesInjectorPopulation::VisionSpikesInjectorPopulation(std::string label, std::string type, int v_width, int v_height, int pop_width, int pop_height) : SpikesInjectorPopulation(label, type, pop_width, pop_height) {
-  std::cout << "Vision Constructor for " << population_label << std::endl;
 
   //this->flip = flip;
 
@@ -359,7 +357,6 @@ std::vector<std::vector<int> > VisionSpikesInjectorPopulation::createIDMap(int h
 // AUDIO_SPIKES_INJECTOR_POPULATION
 /******************************************************************************/
 AudioSpikesInjectorPopulation::AudioSpikesInjectorPopulation(std::string label, std::string type, int pop_width, int pop_height) : SpikesInjectorPopulation(label, type, pop_width, pop_height) {
-  std::cout << "Audio Constructor for " << population_label << std::endl;
 
 }
 /******************************************************************************/

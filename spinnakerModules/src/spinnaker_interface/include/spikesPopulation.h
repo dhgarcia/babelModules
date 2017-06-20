@@ -16,6 +16,7 @@
 #ifndef __SPIKESPOPULATIONS__
 #define __SPIKESPOPULATIONS__
 
+//yarp libraries
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
 
@@ -143,7 +144,7 @@ private:
   // Create a 2D vector to map x,y pos to a neuron ID
   std::vector<std::vector<int> > createIDMap(int height, int width);
   std::vector<std::vector<int> > InputIDMap;
-  
+
   yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> > viewerPort;
 
 };

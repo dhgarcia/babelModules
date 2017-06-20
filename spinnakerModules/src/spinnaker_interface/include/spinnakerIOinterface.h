@@ -19,17 +19,14 @@
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
 
-//opencv libraries
-//#include <opencv2/core/core.hpp>
-//#include <opencv2/highgui/highgui.hpp>
-//#include <opencv2/imgproc/imgproc.hpp>
-//#include <opencv2/imgproc/imgproc_c.h>
-
-//#include <SpiNNakerIO/SpynnakerLiveSpikesConnection.h>
 #include <SpynnakerLiveSpikesConnection.h>
 
-#include <vector>
-#include <iterator>
+//#include <vector>
+//#include <iterator>
+//#include <map>
+//#include <list>
+//#include <math.h>
+#include <cstring>
 
 #include "spikesPopulation.h"
 
@@ -45,6 +42,8 @@ public:
                             SpynnakerLiveSpikesConnection *connection);
   virtual void receive_spikes(char *label, int time, int n_spikes, int* spikes);
 
+  void startSpikesInterface();
+
 private:
   std::string spinInterfaceName;
 
@@ -56,6 +55,7 @@ private:
 
   pthread_mutex_t start_mutex;
   pthread_cond_t start_condition;
+  pthread_mutex_t point_mutex;
 
   std::map<std::string, SpikesPopulation*> spikes_structure;
 
