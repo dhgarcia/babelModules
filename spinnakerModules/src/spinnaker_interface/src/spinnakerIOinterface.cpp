@@ -35,8 +35,6 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
             rf.check("wait_for_start", yarp::os::Value(true)).asBool();
 
 
-    std::map<std::string, SpikesPopulation*> spikes;
-
     //set the spikes streamers
     yarp::os::Bottle * spikesList = rf.find("spikes").asList();
     if(!spikesList) {
@@ -91,6 +89,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
 
       //spikes.push_back(newPopulation);
       spikes[label_name] = newPopulation;
+      //spikes[label_name]->setPopulationPorts(moduleName, true);
     }
 
 
@@ -110,13 +109,13 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
 
     bool ioSuccess = false;
 
-    ioSuccess = initialise(moduleName, spikes, wait, (char*) local_host, local_port, absolute_file_path);
+    ioSuccess = initialise(moduleName, wait, (char*) local_host, local_port, absolute_file_path);
 
     return ioSuccess;
 }
 
 /******************************************************************************/
-bool SpinnakerInterface::initialise(std::string spinnName, std::map<std::string, SpikesPopulation*> &spikes, bool wait, char *local_host, int local_port, char* absolute_file_path)
+bool SpinnakerInterface::initialise(std::string spinnName, bool wait, char *local_host, int local_port, char* absolute_file_path)
 {
 
     bool success = false;
@@ -154,34 +153,41 @@ bool SpinnakerInterface::initialise(std::string spinnName, std::map<std::string,
       char* receive_labels[RECV_LABELS.size()];
       std::copy(RECV_LABELS.begin(), RECV_LABELS.end(), receive_labels);
 
-      std::cout << "\nSend Labels: " << std::endl;
+      std::cout << " Send Labels: " << std::endl;
       for (auto i = SEND_LABELS.begin(); i != SEND_LABELS.end(); ++i){
-        std::cout << *i << " " << std::endl;
+        std::cout << "   " << *i << " " << std::endl;
       }
-      std::cout << "\nReceive Labels: " << std::endl;
+      std::cout << " Receive Labels: " << std::endl;
       for (auto i = RECV_LABELS.begin(); i != RECV_LABELS.end(); i++){
-        std::cout << *i << " " << std::endl;
+        std::cout << "   " << *i << " " << std::endl;
       }
-      std::cout << std::endl;
 
       this->connection = new SpynnakerLiveSpikesConnection(RECV_LABELS.size(), receive_labels, SEND_LABELS.size(), send_labels, (char*) local_host, local_port);
       std::cout << "Spynnaker Interface ... connection " << std::endl;
 
       // Create the spinnaker interface
       this->spikes_interface = new SpikesCallbackInterface(spinnName, spikes, wait);
-      std::cout << "Spynnaker Interface ... interface " << std::endl;
-
-      for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
-
-        this->connection->add_initialize_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
-
-        if( strcmp(it->second->getPopType().c_str(),"injector")==0 )
-          this->connection->add_start_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
-        if( strcmp(it->second->getPopType().c_str(),"receiver")==0 )
-          this->connection->add_receive_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
-      }
 
       std::cout << "Spynnaker Interface ... set callbacks " << std::endl;
+
+      for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
+        std::string label_name(it->second->getPopLabel());
+        char *pop_label = new char[label_name.length() + 1];
+        std::strcpy(pop_label, label_name.c_str());
+        //this->connection->add_initialize_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
+        this->connection->add_initialize_callback(pop_label, spikes_interface);
+        if( strcmp(it->second->getPopType().c_str(),"injector")==0 ){
+          //this->connection->add_start_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
+          this->connection->add_start_callback(pop_label, spikes_interface);
+          std::cout << "add start callback for " << label_name << std::endl;
+        }
+        if( strcmp(it->second->getPopType().c_str(),"receiver")==0 ) {
+          //this->connection->add_receive_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
+          this->connection->add_receive_callback(pop_label, spikes_interface);
+          std::cout << "add receive callback for " << label_name << std::endl;
+        }
+      }
+
 
       if (absolute_file_path != NULL) {
         this->connection->set_database(absolute_file_path);
@@ -226,7 +232,7 @@ bool SpinnakerInterface::respond(const yarp::os::Bottle& command, yarp::os::Bott
       reply.addString("help: start (This will start live spikes when database is ready)");
       reply.addString("help: quit ");
     } else {
-      reply.addString(command.get(0).asString() + "recieved ...");
+      reply.addString("Got " + command.get(0).asString() + " command ...");
 
       if (command.get(0).asString() == "quit") {
         reply.addString("command not recognised");
@@ -242,7 +248,23 @@ bool SpinnakerInterface::respond(const yarp::os::Bottle& command, yarp::os::Bott
 /******************************************************************************/
 bool SpinnakerInterface::updateModule()
 {
-    return true;
+  // for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
+  //   std::string label_name(it->second->getPopLabel());
+  //   char *pop_label = new char[label_name.length() + 1];
+  //   std::strcpy(pop_label, label_name.c_str());
+  //
+  //   if( strcmp(it->second->getPopType().c_str(),"injector")==0 ){
+  //     yarp::os::Bottle *bottle = spikes[label_name]->spikesPort.read(false);
+  //     //std::vector<int> n_neuron_ids; //send_spikes parameter
+  //     //n_neuron_ids = spikes[label_name]->spikesToSpinnaker();
+  //     if (bottle!=NULL) {
+  //       std::cout << "... while spikes ..." << label_name << std::endl;
+  //     } else {
+  //       std::cout << "... no spikes ..." << label_name << std::endl;
+  //     }
+  //   }
+  // }
+  return true;
 }
 
 /******************************************************************************/
@@ -266,7 +288,15 @@ SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std:
 
   n_populations_to_read = spikes.size();
 
-  //create i:o: ports from spikes structure
+  // //create i:o: ports from spikes structure
+  // for (auto const & mp : spikes_structure) {
+  //   yarp::os::BufferedPort<yarp::os::Bottle > *port = new yarp::os::BufferedPort<yarp::os::Bottle >();
+  //   port->open(spinInterfaceName + "/" + mp.first + "/reader");
+  //   //yarp::os::Network::connect(mp.second->getSpikesPortName(), spinInterfaceName + "/" + mp.first + "/reader");
+  //   readPorts.push_back(port);
+  //   //readPorts[mp.first] = port;
+  // }
+
 
   if (pthread_mutex_init(&(this->start_mutex), NULL) == -1) {
       fprintf(stderr, "Error initializing start mutex!\n");
@@ -276,7 +306,6 @@ SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std:
       fprintf(stderr, "Error initializing start condition!\n");
       exit(-1);
   }
-
   if (pthread_mutex_init(&(this->point_mutex), NULL) == -1) {
       fprintf(stderr, "Error initializing point mutex!\n");
       exit(-1);
@@ -288,9 +317,16 @@ SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std:
 void SpikesCallbackInterface::init_population(char *label, int n_neurons, float run_time_ms, float machine_time_step_ms)
 {
   std::string label_str = std::string(label);
-  spikes_structure[label_str]->initPopulation(n_neurons, run_time_ms, machine_time_step_ms);
-  if (spikes_structure[label_str]->setPopulationPort(spinInterfaceName, true)){
-    std::cout << "Population " << label_str << " initialise ... waiting for database " << std::endl;
+  spikes_structure[label_str]->initSpinnakerPopulation(n_neurons, run_time_ms, machine_time_step_ms);
+
+  //create i:o: ports from spikes structure
+  yarp::os::BufferedPort<yarp::os::Bottle > *port = new yarp::os::BufferedPort<yarp::os::Bottle >();
+  port->open(spinInterfaceName + "/" + label_str + "/reader");
+  readPorts.push_back(port);
+
+
+  if (spikes_structure[label_str]->setPopulationPorts(spinInterfaceName, port, true)){
+    std::cout << "Population " << label_str << " initialise ... " << std::endl;
   }
 
   pthread_mutex_lock(&(this->start_mutex));
@@ -298,7 +334,8 @@ void SpikesCallbackInterface::init_population(char *label, int n_neurons, float 
   if (this->n_populations_to_read <= 0) {
       this->database_read = true;
       while (!this->ready_to_start) {
-          pthread_cond_wait(&(this->start_condition), &(this->start_mutex));
+        std::cout << "/* We made it up to here once and the other n times? */" << '\n';
+        pthread_cond_wait(&(this->start_condition), &(this->start_mutex));
       }
   }
   pthread_mutex_unlock(&(this->start_mutex));
@@ -311,16 +348,17 @@ void SpikesCallbackInterface::spikes_start(char *label, SpynnakerLiveSpikesConne
   bool send_full_keys=false; //send_spikes parameter
 
   std::string label_str = std::string(label);
+  std::cout << label_str << " Spikes Start ..." << '\n';
 
   while (true) {
-    n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker();
+    pthread_mutex_lock(&(this->start_mutex));
+    n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker(/*yarp::os::BufferedPort*/);
     if (!n_neuron_ids.empty()) {
-      //pthread_mutex_lock(&(this->start_mutex));
       this->simulation_started = true;
       connection->send_spikes(label, n_neuron_ids, send_full_keys);
-      //pthread_mutex_unlock(&(this->start_mutex));
     }
     n_neuron_ids.clear();
+    pthread_mutex_unlock(&(this->start_mutex));
   }
   //n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker();
 
@@ -331,6 +369,7 @@ void SpikesCallbackInterface::receive_spikes(char *label, int time, int n_spikes
 {
   //pthread_mutex_lock(&(this->point_mutex));
   std::string label_str = std::string(label);
+  std::cout << label_str << " Receive Spikes ..." << '\n';
 
   spikes_structure[label_str]->spikesToYarpPort( time, n_spikes, spikes);
   //pthread_mutex_unlock(&(this->point_mutex));
@@ -342,6 +381,8 @@ void SpikesCallbackInterface::startSpikesInterface() {
   if (!this->ready_to_start) {
       std::cout << "Starting the simulation ..." << std::endl;
       this->ready_to_start = true;
+
+      //yarp::connect
       pthread_cond_signal(&(this->start_condition));
   }
   pthread_mutex_unlock(&(this->start_mutex));

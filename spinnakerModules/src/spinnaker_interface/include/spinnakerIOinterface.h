@@ -59,6 +59,7 @@ private:
 
   std::map<std::string, SpikesPopulation*> spikes_structure;
 
+  std::vector<yarp::os::BufferedPort<yarp::os::Bottle >* > readPorts;
 
 };
 
@@ -66,13 +67,14 @@ class SpinnakerInterface : public yarp::os::RFModule
 {
 
   //std::vector<SpikesPopulation> spikes;
+  std::map<std::string, SpikesPopulation*> spikes;
 
   SpikesCallbackInterface *spikes_interface;
 
   SpynnakerLiveSpikesConnection *connection;// =
 
 
-  bool initialise(std::string spinnName, std::map<std::string, SpikesPopulation*> &spikes, bool wait, char *local_host, int local_port, char* absolute_file_path);
+  bool initialise(std::string spinnName, bool wait, char *local_host, int local_port, char* absolute_file_path);
 
 
 public:

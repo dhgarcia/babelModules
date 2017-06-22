@@ -29,7 +29,7 @@ void SpikesPopulation::setPopSize(int x, int y)
   this->population_size[1]=y;
 }
 /******************************************************************************/
-void SpikesPopulation::initPopulation(int n_neurons, float run_time_ms, float machine_time_step_ms)
+void SpikesPopulation::initSpinnakerPopulation(int n_neurons, float run_time_ms, float machine_time_step_ms)
 {
   this->n_neurons = n_neurons;
   this->run_time_ms = run_time_ms;
@@ -46,6 +46,13 @@ std::string SpikesPopulation::getPopType()
 {
   //std::cout << population_label << " getting population type: " << population_type << std::endl;
   return this->population_type;
+}
+/******************************************************************************/
+bool  SpikesPopulation::connectSpikePortToCallbackPort( yarp::os::BufferedPort<yarp::os::Bottle>* readPort)
+{
+  callbackSpikesPort = readPort;
+
+  return yarp::os::Network::connect(this->spikesPort.getName(), callbackSpikesPort->getName());
 }
 
 
@@ -66,7 +73,7 @@ void SpikesReceiverPopulation::spikesToYarpPort(int time, int n_spikes, int* spi
     spikeList.addInt(spikes[neuron_id_position]);
   }
 
-  //std::cout << "Length of receive spike list is " << spikeList.size() << std::endl;
+  std::cout << "Length of receive spike list is " << spikeList.size() << std::endl;
   this->spikesPort.write();
   spikeList.clear();
 
@@ -76,19 +83,11 @@ std::vector<int> SpikesReceiverPopulation::spikesToSpinnaker(){
   return std::vector<int>();
 }
 /******************************************************************************/
-bool SpikesReceiverPopulation::setPopulationPort(std::string moduleName, bool broadcast)
+bool SpikesReceiverPopulation::setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort, bool strictio, bool broadcast)
 {
-  //and open the input port
-  //if(strictio) this->setStrict();
-  //this->strictio = strictio;
-  //this->useCallback();
-
-  //yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::open(name + "/img:i");
-
   if (broadcast) this->spikesPort.open(moduleName + "/" +  this->population_label + ":" + this->population_type);
-  //this->broadcast = broadcast;
 
-  //spikesPort.open(name + "/img/spikes");
+  connectSpikePortToCallbackPort(readPort);
 
   return true;
 }
@@ -96,37 +95,55 @@ bool SpikesReceiverPopulation::setPopulationPort(std::string moduleName, bool br
 /******************************************************************************/
 // SPIKES_INJECTOR_POPULATION
 /******************************************************************************/
-SpikesInjectorPopulation::SpikesInjectorPopulation(std::string label, std::string type, int width, int height) : SpikesPopulation(label, type) {
+template <typename T>
+SpikesInjectorPopulation<T>::SpikesInjectorPopulation(std::string label, std::string type, int width, int height, std::string source) : SpikesPopulation(label, type) {
   //this->population_label = label;
   //this->population_type = type;
 
   this->population_size[0]=width;
   this->population_size[1]=height;
 
-}
-/******************************************************************************/
-void SpikesInjectorPopulation::spikesToYarpPort(int time, int n_spikes, int* spikes){
+  this->sourcePortName = source;
 
 }
 /******************************************************************************/
-std::vector<int> SpikesInjectorPopulation::spikesToSpinnaker(){
+template <typename T>
+bool SpikesInjectorPopulation<T>::setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort, bool broadcast, bool strictio) {
+  if (this->open(moduleName, broadcast, strictio))
+  return connectSpikePortToCallbackPort(readPort);
 
-  std::vector<int> n_neuron_ids;
-  yarp::os::Bottle *bottle = spikesPort.read();
+  return false;
+}
+/******************************************************************************/
+template <typename T>
+void SpikesInjectorPopulation<T>::spikesToYarpPort(int time, int n_spikes, int* spikes){
 
-  int n_spikes = bottle->size();
-  // get the item back from the Bottle
-  for (int neuron_id_position = 0;  neuron_id_position < n_spikes; neuron_id_position++)
-  {
-    yarp::os::Value tmpVal = bottle->pop();
-    // Convert to integer neuron ID
-    int nrnId = tmpVal.asInt();
-    n_neuron_ids.push_back(nrnId);
+}
+/******************************************************************************/
+template <typename T>
+std::vector<int> SpikesInjectorPopulation<T>::spikesToSpinnaker(){
+
+  yarp::os::Bottle *bottle = this->callbackSpikesPort->read();
+  if (bottle!=NULL) {
+    std::vector<int> n_neuron_ids;
+
+    int n_spikes = bottle->size();
+    //std::cout << "Length of spikes is " << n_spikes << std::endl;
+    // get the item back from the Bottle
+    for (int neuron_id_position = 0;  neuron_id_position < n_spikes; neuron_id_position++)
+    {
+      yarp::os::Value tmpVal = bottle->pop();
+      // Convert to integer neuron ID
+      int nrnId = tmpVal.asInt();
+      n_neuron_ids.push_back(nrnId);
+    }
+    //std::cout << "Length of spike list is " << n_neuron_ids.size() << std::endl;
+    // clear the Bottle
+    bottle->clear();
+
+    return n_neuron_ids;
   }
-  // clear the Bottle
-  bottle->clear();
-
-  return n_neuron_ids;
+  return std::vector<int>();
 }
 /******************************************************************************/
 
@@ -143,12 +160,7 @@ EventSpikesInjectorPopulation::EventSpikesInjectorPopulation(std::string label, 
 
 }
 /******************************************************************************/
-bool EventSpikesInjectorPopulation::setPopulationPort(std::string moduleName, bool strictio)
-{
-  return this->open(moduleName, strictio);
-}
-/******************************************************************************/
-bool EventSpikesInjectorPopulation::open(const std::string &name, bool strictio)
+bool EventSpikesInjectorPopulation::open(const std::string &name, bool strictio, bool broadcast)
 {
     //and open the input port
     if(strictio) this->setStrict();
@@ -158,6 +170,9 @@ bool EventSpikesInjectorPopulation::open(const std::string &name, bool strictio)
     yarp::os::BufferedPort< ev::vBottle >::open(name + "/" +  this->population_label + "/" + this->population_type + ":i");
 
     std::cout << "Open port " << name << "/" << this->population_label << "/" << this->population_type << ":i" << std::endl;
+
+    //std::string sourcePortName = "/zynqGrabber/vBottle:o"; //change to function parameter in constructor
+    yarp::os::Network::connect(sourcePortName.c_str(), yarp::os::BufferedPort< ev::vBottle >::getName());
 
     //if (broadcast) viewerPort.open(name + "/img:o");
     //this->broadcast = broadcast;
@@ -241,10 +256,10 @@ VisionSpikesInjectorPopulation::VisionSpikesInjectorPopulation(std::string label
   this->InputIDMap = createIDMap(v_height, v_width);
 }
 /******************************************************************************/
-bool VisionSpikesInjectorPopulation::setPopulationPort(std::string moduleName, bool strictio)
-{
-  return this->open(moduleName, strictio);
-}
+// bool VisionSpikesInjectorPopulation::setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort, bool strictio)
+// {
+//   return this->open(moduleName, strictio);
+// }
 /******************************************************************************/
 bool VisionSpikesInjectorPopulation::open(const std::string &name, bool strictio, bool broadcast)
 {
@@ -360,12 +375,7 @@ AudioSpikesInjectorPopulation::AudioSpikesInjectorPopulation(std::string label, 
 
 }
 /******************************************************************************/
-bool AudioSpikesInjectorPopulation::setPopulationPort(std::string moduleName, bool strictio)
-{
-  return this->open(moduleName, strictio);
-}
-/******************************************************************************/
-bool AudioSpikesInjectorPopulation::open(const std::string &name, bool strictio)
+bool AudioSpikesInjectorPopulation::open(const std::string &name, bool strictio, bool broadcast)
 {
     //and open the input port
     if(strictio) this->setStrict();
