@@ -63,7 +63,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
 
       if (population_type == "receiver") {
         if(populaion_type_list->size() % 2) {
-            std::cerr << "Error: spikes incorrectly configured " << std::endl;
+            std::cerr << "Error: receiver spikes incorrectly configured " << std::endl;
             return false;
         }
         int x = populaion_type_list->get(0).asInt();
@@ -72,7 +72,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
         newPopulation->setPopSize(x,y);
       } else if (population_type == "event_injector") {
         if(populaion_type_list->size() % 7) {
-            std::cerr << "Error: spikes incorrectly configured " << std::endl;
+            std::cerr << "Error: event spikes incorrectly configured " << std::endl;
             return false;
         }
         int ev_polarity = populaion_type_list->get(0).asInt();
@@ -85,7 +85,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
         newPopulation = new EventSpikesInjectorPopulation(label_name, "injector", ev_polarity, ev_width, ev_height, pop_width, pop_height, flip, source);
       } else if (population_type == "vision_injector") {
         if(populaion_type_list->size() % 5) {
-            std::cerr << "Error: spikes incorrectly configured " << std::endl;
+            std::cerr << "Error: vision spikes incorrectly configured " << std::endl;
             return false;
         }
         int img_width = populaion_type_list->get(0).asInt();
@@ -96,7 +96,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
         newPopulation = new VisionSpikesInjectorPopulation(label_name, "injector", img_width, img_height, pop_width, pop_height, source);
       } else if (population_type == "audio_injector") {
         if(populaion_type_list->size() % 3) {
-            std::cerr << "Error: spikes incorrectly configured " << std::endl;
+            std::cerr << "Error: audio spikes incorrectly configured " << std::endl;
             return false;
         }
         int x = populaion_type_list->get(0).asInt();
@@ -185,7 +185,7 @@ bool SpinnakerInterface::initialise(std::string spinnName, bool wait, char *loca
       std::cout << "   " << *i << " " << std::endl;
     }
 
-    this->connection = new SpynnakerLiveSpikesConnection(RECV_LABELS.size(), receive_labels, SEND_LABELS.size(), send_labels, (char*) local_host, local_port);
+    this->connection = new SpynnakerLiveSpikesConnection(RECV_LABELS.size(), receive_labels, SEND_LABELS.size(), send_labels, (char*) local_host, local_port, true);
     std::cout << "Spynnaker Interface ... connection " << std::endl;
 
     // Create the spinnaker interface
@@ -303,7 +303,7 @@ double SpinnakerInterface::getPeriod()
 SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std::string, SpikesPopulation*> &spikes, bool wait_for_start)
 {
   spinInterfaceName = name;
-  ready_to_start = !wait_for_start;
+  ready_to_start = false;//!wait_for_start;
   simulation_started = false;
   database_read = false;
 
@@ -311,7 +311,7 @@ SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std:
 
   n_populations_to_read = spikes.size();
 
-
+/*
   if (pthread_mutex_init(&(this->start_mutex), NULL) == -1) {
       fprintf(stderr, "Error initializing start mutex!\n");
       exit(-1);
@@ -323,7 +323,7 @@ SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std:
   if (pthread_mutex_init(&(this->point_mutex), NULL) == -1) {
       fprintf(stderr, "Error initializing point mutex!\n");
       exit(-1);
-  }
+  }*/
 
 
 }
@@ -339,23 +339,23 @@ void SpikesCallbackInterface::init_population(char *label, int n_neurons, float 
   readPorts.push_back(port);
 
 
-  if (spikes_structure[label_str]->setPopulationPorts(spinInterfaceName, port, true)){
+  if (spikes_structure[label_str]->setPopulationPorts(spinInterfaceName, port, true, false)){
     std::cout << "Population " << label_str << " initialise ... " << std::endl;
   } else {
     fprintf(stderr, "Error connecting ports!\n");
     exit(-1);
   }
 
-  pthread_mutex_lock(&(this->start_mutex));
+  /*pthread_mutex_lock(&(this->start_mutex));
   this->n_populations_to_read -= 1;
   if (this->n_populations_to_read <= 0) {
       this->database_read = true;
       while (!this->ready_to_start) {
-        std::cout << "/* We made it up to here once and the other n times? */" << '\n';
+        std::cout << " We made it up to here once and the other n times? " << '\n';
         pthread_cond_wait(&(this->start_condition), &(this->start_mutex));
       }
   }
-  pthread_mutex_unlock(&(this->start_mutex));
+  pthread_mutex_unlock(&(this->start_mutex));*/
 
 }
 /******************************************************************************/
@@ -368,14 +368,14 @@ void SpikesCallbackInterface::spikes_start(char *label, SpynnakerLiveSpikesConne
   std::cout << label_str << " Spikes Start ..." << '\n';
 
   while (true) {
-    pthread_mutex_lock(&(this->start_mutex));
+    //pthread_mutex_lock(&(this->start_mutex));
     n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker(/*yarp::os::BufferedPort*/);
     if (!n_neuron_ids.empty()) {
       this->simulation_started = true;
       connection->send_spikes(label, n_neuron_ids, send_full_keys);
     }
     n_neuron_ids.clear();
-    pthread_mutex_unlock(&(this->start_mutex));
+    //pthread_mutex_unlock(&(this->start_mutex));
   }
   //n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker();
 
@@ -394,15 +394,14 @@ void SpikesCallbackInterface::receive_spikes(char *label, int time, int n_spikes
 
 /******************************************************************************/
 void SpikesCallbackInterface::startSpikesInterface() {
-  pthread_mutex_lock(&(this->start_mutex));
+  /*pthread_mutex_lock(&(this->start_mutex));
   if (!this->ready_to_start) {
       std::cout << "Starting the simulation ..." << std::endl;
       this->ready_to_start = true;
 
-      //yarp::connect
       pthread_cond_signal(&(this->start_condition));
   }
-  pthread_mutex_unlock(&(this->start_mutex));
+  pthread_mutex_unlock(&(this->start_mutex));*/
 }
 
 

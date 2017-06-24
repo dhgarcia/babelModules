@@ -85,8 +85,9 @@ std::vector<int> SpikesReceiverPopulation::spikesToSpinnaker(){
 /******************************************************************************/
 bool SpikesReceiverPopulation::setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort, bool strictio, bool broadcast)
 {
-  if (broadcast) this->spikesPort.open(moduleName + "/" +  this->population_label + ":" + this->population_type);
-  this->strictio = broadcast;
+  //if (broadcast)
+  this->spikesPort.open(moduleName + "/" +  this->population_label + ":" + this->population_type);
+  //this->strictio = broadcast;
 
   //if(strictio) this->spikesPort.setStrict();
   this->strictio = strictio;
@@ -109,14 +110,17 @@ SpikesInjectorPopulation<T>::SpikesInjectorPopulation(std::string label, std::st
 
   this->sourcePortName = source;
 
+  this->open("/spinnakerIO", true, false);
+  yarp::os::Network::connect(sourcePortName.c_str(), yarp::os::BufferedPort< T >::getName());
+
 }
 /******************************************************************************/
 template <typename T>
 bool SpikesInjectorPopulation<T>::setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort, bool broadcast, bool strictio) {
   if (this->open(moduleName, broadcast, strictio)) {
-    if ( yarp::os::Network::connect(sourcePortName.c_str(), yarp::os::BufferedPort< T >::getName()) ) {
+    //if ( yarp::os::Network::connect(sourcePortName.c_str(), yarp::os::BufferedPort< T >::getName()) ) {
       return connectSpikePortToCallbackPort(readPort);
-    }
+    //}
   }
 
   return false;
@@ -151,7 +155,7 @@ void SpikesInjectorPopulation<T>::spikesFromSpinnaker(int time, int n_spikes, in
 template <typename T>
 std::vector<int> SpikesInjectorPopulation<T>::spikesToSpinnaker(){
 
-  yarp::os::Bottle *bottle = this->callbackSpikesPort->read();
+  yarp::os::Bottle *bottle = this->callbackSpikesPort->read(this->strictio);
   if (bottle!=NULL) {
     std::vector<int> n_neuron_ids;
 
