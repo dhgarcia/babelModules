@@ -403,6 +403,9 @@ void SpikesCallbackInterface::startSpikesInterface() {
   }
   pthread_mutex_unlock(&(this->start_mutex));*/
 }
-
+/******************************************************************************/
+void SpikesCallbackInterface::run() {
+  
+}
 
 //empty line to make gcc happy
