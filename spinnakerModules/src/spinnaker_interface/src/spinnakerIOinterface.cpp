@@ -185,7 +185,7 @@ bool SpinnakerInterface::initialise(std::string spinnName, bool wait, char *loca
       std::cout << "   " << *i << " " << std::endl;
     }
 
-    this->connection = new SpynnakerLiveSpikesConnection(RECV_LABELS.size(), receive_labels, SEND_LABELS.size(), send_labels, (char*) local_host, local_port, true);
+    this->connection = new SpynnakerLiveSpikesConnection(RECV_LABELS.size(), receive_labels, SEND_LABELS.size(), send_labels, (char*) local_host, local_port, false);
     std::cout << "Spynnaker Interface ... connection " << std::endl;
 
     // Create the spinnaker interface
@@ -303,7 +303,7 @@ double SpinnakerInterface::getPeriod()
 SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std::string, SpikesPopulation*> &spikes, bool wait_for_start)
 {
   spinInterfaceName = name;
-  ready_to_start = false;//!wait_for_start;
+  ready_to_start = !wait_for_start;
   simulation_started = false;
   database_read = false;
 
@@ -311,7 +311,7 @@ SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std:
 
   n_populations_to_read = spikes.size();
 
-/*
+
   if (pthread_mutex_init(&(this->start_mutex), NULL) == -1) {
       fprintf(stderr, "Error initializing start mutex!\n");
       exit(-1);
@@ -320,10 +320,14 @@ SpikesCallbackInterface::SpikesCallbackInterface(std::string name, std::map<std:
       fprintf(stderr, "Error initializing start condition!\n");
       exit(-1);
   }
-  if (pthread_mutex_init(&(this->point_mutex), NULL) == -1) {
-      fprintf(stderr, "Error initializing point mutex!\n");
+  if (pthread_mutex_init(&(this->send_mutex), NULL) == -1) {
+      fprintf(stderr, "Error initializing send mutex!\n");
       exit(-1);
-  }*/
+  }
+  if (pthread_mutex_init(&(this->recv_mutex), NULL) == -1) {
+      fprintf(stderr, "Error initializing recv mutex!\n");
+      exit(-1);
+  }
 
 
 }
@@ -338,25 +342,29 @@ void SpikesCallbackInterface::init_population(char *label, int n_neurons, float 
   port->open(spinInterfaceName + "/" + label_str + "/reader");
   readPorts.push_back(port);
 
+  pthread_mutex_lock(&(this->start_mutex));
 
-  if (spikes_structure[label_str]->setPopulationPorts(spinInterfaceName, port, true, false)){
+  if (spikes_structure[label_str]->setPopulationPorts(spinInterfaceName, port)){
     std::cout << "Population " << label_str << " initialise ... " << std::endl;
+    spikes_structure[label_str]->start();
   } else {
     fprintf(stderr, "Error connecting ports!\n");
     exit(-1);
   }
 
-  /*pthread_mutex_lock(&(this->start_mutex));
   this->n_populations_to_read -= 1;
   if (this->n_populations_to_read <= 0) {
-      this->database_read = true;
-      while (!this->ready_to_start) {
-        std::cout << " We made it up to here once and the other n times? " << '\n';
-        pthread_cond_wait(&(this->start_condition), &(this->start_mutex));
-      }
-  }
-  pthread_mutex_unlock(&(this->start_mutex));*/
-
+    std::cout << " Populations initialised ... Ready to Start ";
+    this->database_read = true;
+    while (!this->ready_to_start) {
+      std::cout << ".";
+      pthread_cond_wait(&(this->start_condition), &(this->start_mutex));
+    }
+    std::cout << "\n Simulation started ... " << std::endl;
+  }// else {
+    //std::cout << " Not 0!! "<< std::endl;
+  //}
+  pthread_mutex_unlock(&(this->start_mutex));
 }
 /******************************************************************************/
 void SpikesCallbackInterface::spikes_start(char *label, SpynnakerLiveSpikesConnection *connection)
@@ -365,17 +373,17 @@ void SpikesCallbackInterface::spikes_start(char *label, SpynnakerLiveSpikesConne
   bool send_full_keys=false; //send_spikes parameter
 
   std::string label_str = std::string(label);
-  std::cout << label_str << " Spikes Start ..." << '\n';
 
+  std::cout << label_str << " Spikes Start ..." << '\n';
   while (true) {
-    //pthread_mutex_lock(&(this->start_mutex));
+    pthread_mutex_lock(&(this->send_mutex));
     n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker(/*yarp::os::BufferedPort*/);
     if (!n_neuron_ids.empty()) {
       this->simulation_started = true;
       connection->send_spikes(label, n_neuron_ids, send_full_keys);
     }
     n_neuron_ids.clear();
-    //pthread_mutex_unlock(&(this->start_mutex));
+    pthread_mutex_unlock(&(this->send_mutex));
   }
   //n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker();
 
@@ -384,28 +392,30 @@ void SpikesCallbackInterface::spikes_start(char *label, SpynnakerLiveSpikesConne
 /******************************************************************************/
 void SpikesCallbackInterface::receive_spikes(char *label, int time, int n_spikes, int* spikes)
 {
-  //pthread_mutex_lock(&(this->point_mutex));
+  pthread_mutex_lock(&(this->recv_mutex));
   std::string label_str = std::string(label);
   std::cout << label_str << " Receive Spikes ..." << '\n';
 
   spikes_structure[label_str]->spikesFromSpinnaker( time, n_spikes, spikes);
-  //pthread_mutex_unlock(&(this->point_mutex));
+  pthread_mutex_unlock(&(this->recv_mutex));
 }
 
 /******************************************************************************/
 void SpikesCallbackInterface::startSpikesInterface() {
-  /*pthread_mutex_lock(&(this->start_mutex));
+  pthread_mutex_lock(&(this->start_mutex));
+  //std::cout << "Waiting for database to be ready ..." << std::endl;
+  //while (!this->database_read) {
+    //wait!
+  //}
   if (!this->ready_to_start) {
-      std::cout << "Starting the simulation ..." << std::endl;
-      this->ready_to_start = true;
-
-      pthread_cond_signal(&(this->start_condition));
+    std::cout << "\nStarting the simulation ..." << std::endl;
+    this->ready_to_start = true;
+    pthread_cond_signal(&(this->start_condition));
+  } else {
+    std::cout << "Simulation already started." << std::endl;
   }
-  pthread_mutex_unlock(&(this->start_mutex));*/
+  pthread_mutex_unlock(&(this->start_mutex));
 }
-/******************************************************************************/
-void SpikesCallbackInterface::run() {
-  
-}
+
 
 //empty line to make gcc happy

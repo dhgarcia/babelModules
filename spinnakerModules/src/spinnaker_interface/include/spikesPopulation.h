@@ -31,10 +31,10 @@
 #include <iCub/eventdriven/vtsHelper.h>
 
 
-class SpikesPopulation {
+class SpikesPopulation : public yarp::os::Thread {
 
 public:
-  SpikesPopulation(std::string label, std::string type);
+  SpikesPopulation(std::string label, std::string type, bool strict, bool broadcast);
 
   std::string getPopLabel();
   std::string getPopType();
@@ -42,10 +42,12 @@ public:
   void setPopSize(int x, int y);
   void initSpinnakerPopulation(int n_neurons, float run_time_ms, float machine_time_step_ms); // call from spinnakerIOinterface init_population()
 
-  virtual bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort, bool strictio=false, bool broadcast=false)=0;
+  virtual bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort)=0;
   virtual void spikesFromSpinnaker(int time, int n_spikes, int* spikes)=0;
   virtual std::vector<int> spikesToSpinnaker()=0;
 
+  void run();
+  bool threadInit();
 
 protected:
   bool connectSpikePortToCallbackPort(yarp::os::BufferedPort<yarp::os::Bottle>* readPort);
@@ -70,9 +72,9 @@ protected:
 class SpikesReceiverPopulation : public SpikesPopulation {
 
 public:
-  SpikesReceiverPopulation(std::string label, std::string type);
+  SpikesReceiverPopulation(std::string label, std::string type, bool strictio=false, bool broadcast=true);
 
-  bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort, bool strictio=false, bool broadcast=true);
+  bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort);
   void spikesFromSpinnaker(int time, int n_spikes, int* spikes);
   virtual std::vector<int> spikesToSpinnaker();
 
@@ -86,9 +88,9 @@ class SpikesInjectorPopulation : public SpikesPopulation, public yarp::os::Buffe
 {
 
 public:
-  SpikesInjectorPopulation(std::string label, std::string type, int width, int height, std::string source);
+  SpikesInjectorPopulation(std::string label, std::string type, int width, int height, std::string source, bool strictio=true, bool broadcast=false);
 
-  virtual bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort, bool strictio=true, bool broadcast=false);
+  virtual bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort);
   virtual void spikesFromSpinnaker(int time, int n_spikes, int* spikes);
   std::vector<int> spikesToSpinnaker();
 
@@ -98,6 +100,8 @@ protected:
   std::string sourcePortName;
   yarp::os::BufferedPort< T > viewerPort;
 
+  int times_onRead=0;
+
 private:
 
 };
@@ -105,7 +109,7 @@ private:
 class EventSpikesInjectorPopulation : public SpikesInjectorPopulation< ev::vBottle > {
 
 public:
-  EventSpikesInjectorPopulation(std::string label, std::string type, int ev_polarity, int ev_width, int ev_height, int pop_width, int pop_height, bool flip, std::string source="/zynqGrabber/vBottle:o");
+  EventSpikesInjectorPopulation(std::string label, std::string type, int ev_polarity, int ev_width, int ev_height, int pop_width, int pop_height, bool flip, std::string source="/zynqGrabber/vBottle:o", bool strictio=true, bool broadcast=false);
 
   //bool    open(const std::string &name, bool strictio, bool broadcast=false);
   void    close();
@@ -120,13 +124,14 @@ private:
   int ev_width;
   int ev_height;
 
+
 };
 
 
 class VisionSpikesInjectorPopulation : public SpikesInjectorPopulation < yarp::sig::ImageOf<yarp::sig::PixelBgr> > {
 
 public:
-  VisionSpikesInjectorPopulation(std::string label, std::string type, int v_width, int v_height, int pop_width, int pop_height, std::string source="/icub/cam/left");
+  VisionSpikesInjectorPopulation(std::string label, std::string type, int v_width, int v_height, int pop_width, int pop_height, std::string source="/icub/cam/left", bool strictio=true, bool broadcast=false);
 
   //bool    open(const std::string &name, bool strictio, bool broadcast=true);
   void    close();
@@ -150,7 +155,7 @@ private:
 class AudioSpikesInjectorPopulation : public SpikesInjectorPopulation < yarp::os::Bottle > {
 
 public:
-  AudioSpikesInjectorPopulation(std::string label, std::string type, int pop_width, int pop_height, std::string source="/icub/speach");
+  AudioSpikesInjectorPopulation(std::string label, std::string type, int pop_width, int pop_height, std::string source="/icub/speach", bool strictio=true, bool broadcast=false);
 
   //bool    open(const std::string &name, bool strictio, bool broadcast=false);
   void    close();

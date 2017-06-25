@@ -31,7 +31,7 @@
 #include "spikesPopulation.h"
 
 
-class SpikesCallbackInterface : public yarp::os::Thread, public SpikeReceiveCallbackInterface, public SpikesStartCallbackInterface, public SpikeInitializeCallbackInterface
+class SpikesCallbackInterface : public SpikeReceiveCallbackInterface, public SpikesStartCallbackInterface, public SpikeInitializeCallbackInterface
 {
 
 public:
@@ -44,7 +44,6 @@ public:
 
   void startSpikesInterface();
 
-  void run();
 
 private:
   std::string spinInterfaceName;
@@ -57,7 +56,8 @@ private:
 
   pthread_mutex_t start_mutex;
   pthread_cond_t start_condition;
-  pthread_mutex_t point_mutex;
+  pthread_mutex_t send_mutex;
+  pthread_mutex_t recv_mutex;
 
   std::map<std::string, SpikesPopulation*> spikes_structure;
   std::vector<yarp::os::BufferedPort<yarp::os::Bottle >* > readPorts;
