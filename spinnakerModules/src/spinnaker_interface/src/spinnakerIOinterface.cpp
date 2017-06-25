@@ -71,7 +71,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
         newPopulation = new SpikesReceiverPopulation(label_name, population_type);
         newPopulation->setPopSize(x,y);
       } else if (population_type == "event_injector") {
-        if(populaion_type_list->size() % 7) {
+        if(populaion_type_list->size() % 8) {
             std::cerr << "Error: event spikes incorrectly configured " << std::endl;
             return false;
         }
@@ -82,10 +82,11 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
         int pop_height = populaion_type_list->get(4).asInt();
         bool flip = populaion_type_list->get(5).asBool();
         std::string source = populaion_type_list->get(6).asString();
-        newPopulation = new EventSpikesInjectorPopulation(label_name, "injector", ev_polarity, ev_width, ev_height, pop_width, pop_height, flip, source);
+        bool strict = populaion_type_list->get(7).asBool();
+        newPopulation = new EventSpikesInjectorPopulation(label_name, "injector", ev_polarity, ev_width, ev_height, pop_width, pop_height, flip, source, strict);
       } else if (population_type == "vision_injector") {
-        if(populaion_type_list->size() % 5) {
-            std::cerr << "Error: vision spikes incorrectly configured " << std::endl;
+        if(populaion_type_list->size() % 6) {
+            std::cerr << "Error: vision spikesincorrectly configured " << std::endl;
             return false;
         }
         int img_width = populaion_type_list->get(0).asInt();
@@ -93,16 +94,18 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
         int pop_width = populaion_type_list->get(2).asInt();
         int pop_height = populaion_type_list->get(3).asInt();
         std::string source = populaion_type_list->get(4).asString();
-        newPopulation = new VisionSpikesInjectorPopulation(label_name, "injector", img_width, img_height, pop_width, pop_height, source);
+        bool strict = populaion_type_list->get(5).asBool();
+        newPopulation = new VisionSpikesInjectorPopulation(label_name, "injector", img_width, img_height, pop_width, pop_height, source, strict);
       } else if (population_type == "audio_injector") {
-        if(populaion_type_list->size() % 3) {
+        if(populaion_type_list->size() % 4) {
             std::cerr << "Error: audio spikes incorrectly configured " << std::endl;
             return false;
         }
         int x = populaion_type_list->get(0).asInt();
         int y = populaion_type_list->get(1).asInt();
         std::string source = populaion_type_list->get(2).asString();
-        newPopulation = new AudioSpikesInjectorPopulation(label_name, "injector", x, y, source);
+        bool strict = populaion_type_list->get(3).asBool();
+        newPopulation = new AudioSpikesInjectorPopulation(label_name, "injector", x, y, source, strict);
       } else {
         newPopulation = NULL; //new SpikesPopulation(label_name, population_type); //abstract cannot be instantiated
       }
@@ -361,6 +364,7 @@ void SpikesCallbackInterface::init_population(char *label, int n_neurons, float 
       pthread_cond_wait(&(this->start_condition), &(this->start_mutex));
     }
     std::cout << "\n Simulation started ... " << std::endl;
+    this->simulation_started = true;
   }// else {
     //std::cout << " Not 0!! "<< std::endl;
   //}
@@ -375,11 +379,11 @@ void SpikesCallbackInterface::spikes_start(char *label, SpynnakerLiveSpikesConne
   std::string label_str = std::string(label);
 
   std::cout << label_str << " Spikes Start ..." << '\n';
-  while (true) {
+  //this->simulation_started = true;
+  while (this->simulation_started) {
     pthread_mutex_lock(&(this->send_mutex));
     n_neuron_ids = spikes_structure[label_str]->spikesToSpinnaker(/*yarp::os::BufferedPort*/);
     if (!n_neuron_ids.empty()) {
-      this->simulation_started = true;
       connection->send_spikes(label, n_neuron_ids, send_full_keys);
     }
     n_neuron_ids.clear();

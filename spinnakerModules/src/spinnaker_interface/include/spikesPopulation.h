@@ -72,7 +72,7 @@ protected:
 class SpikesReceiverPopulation : public SpikesPopulation {
 
 public:
-  SpikesReceiverPopulation(std::string label, std::string type, bool strictio=false, bool broadcast=true);
+  SpikesReceiverPopulation(std::string label, std::string type, bool strict=true, bool broadcast=true);
 
   bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort);
   void spikesFromSpinnaker(int time, int n_spikes, int* spikes);
@@ -88,13 +88,15 @@ class SpikesInjectorPopulation : public SpikesPopulation, public yarp::os::Buffe
 {
 
 public:
-  SpikesInjectorPopulation(std::string label, std::string type, int width, int height, std::string source, bool strictio=true, bool broadcast=false);
+  SpikesInjectorPopulation(std::string label, std::string type, int width, int height, std::string source, bool strict=true, bool broadcast=false);
 
   virtual bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort);
   virtual void spikesFromSpinnaker(int time, int n_spikes, int* spikes);
   std::vector<int> spikesToSpinnaker();
 
   bool open(const std::string &name, bool strictio, bool broadcast);
+  void    close();
+  void    interrupt();
 
 protected:
   std::string sourcePortName;
@@ -109,11 +111,11 @@ private:
 class EventSpikesInjectorPopulation : public SpikesInjectorPopulation< ev::vBottle > {
 
 public:
-  EventSpikesInjectorPopulation(std::string label, std::string type, int ev_polarity, int ev_width, int ev_height, int pop_width, int pop_height, bool flip, std::string source="/zynqGrabber/vBottle:o", bool strictio=true, bool broadcast=false);
+  EventSpikesInjectorPopulation(std::string label, std::string type, int ev_polarity, int ev_width, int ev_height, int pop_width, int pop_height, bool flip, std::string source="/zynqGrabber/vBottle:o", bool strict=true, bool broadcast=false);
 
   //bool    open(const std::string &name, bool strictio, bool broadcast=false);
-  void    close();
-  void    interrupt();
+  //void    close();
+  //void    interrupt();
   //this is the entry point to your main functionality
   void    onRead(ev::vBottle &bot);
 
@@ -131,11 +133,11 @@ private:
 class VisionSpikesInjectorPopulation : public SpikesInjectorPopulation < yarp::sig::ImageOf<yarp::sig::PixelBgr> > {
 
 public:
-  VisionSpikesInjectorPopulation(std::string label, std::string type, int v_width, int v_height, int pop_width, int pop_height, std::string source="/icub/cam/left", bool strictio=true, bool broadcast=false);
+  VisionSpikesInjectorPopulation(std::string label, std::string type, int v_width, int v_height, int pop_width, int pop_height, std::string source="/icub/cam/left", bool strict=true, bool broadcast=false);
 
   //bool    open(const std::string &name, bool strictio, bool broadcast=true);
-  void    close();
-  void    interrupt();
+  //void    close();
+  //void    interrupt();
   //this is the entry point to your main functionality
   void    onRead(yarp::sig::ImageOf<yarp::sig::PixelBgr> &bot);
 
@@ -155,11 +157,11 @@ private:
 class AudioSpikesInjectorPopulation : public SpikesInjectorPopulation < yarp::os::Bottle > {
 
 public:
-  AudioSpikesInjectorPopulation(std::string label, std::string type, int pop_width, int pop_height, std::string source="/icub/speach", bool strictio=true, bool broadcast=false);
+  AudioSpikesInjectorPopulation(std::string label, std::string type, int pop_width, int pop_height, std::string source="/icub/speach", bool strict=true, bool broadcast=false);
 
   //bool    open(const std::string &name, bool strictio, bool broadcast=false);
-  void    close();
-  void    interrupt();
+  //void    close();
+  //void    interrupt();
   //this is the entry point to your main functionality
   void    onRead(yarp::os::Bottle &bot);
 

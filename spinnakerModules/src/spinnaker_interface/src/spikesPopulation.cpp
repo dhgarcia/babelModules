@@ -77,6 +77,7 @@ SpikesReceiverPopulation::SpikesReceiverPopulation(std::string label, std::strin
 void SpikesReceiverPopulation::spikesFromSpinnaker(int time, int n_spikes, int* spikes){
 
   yarp::os::Bottle& spikeList = this->spikesPort.prepare();
+  spikeList.clear();
 
   for (int neuron_id_position = 0;  neuron_id_position < n_spikes; neuron_id_position++)
   {
@@ -84,10 +85,9 @@ void SpikesReceiverPopulation::spikesFromSpinnaker(int time, int n_spikes, int* 
     spikeList.addInt(spikes[neuron_id_position]);
   }
 
-  std::cout << "Length of receive spike list is " << spikeList.size() << std::endl;
+  //std::cout << "Length of receive spike list is " << spikeList.size() << std::endl;
   if(strictio) this->spikesPort.writeStrict();
   else this->spikesPort.write();
-  spikeList.clear();
 
 }
 /******************************************************************************/
@@ -157,6 +157,26 @@ bool SpikesInjectorPopulation<T>::open(const std::string &name, bool strictio, b
 
     return true;
 }
+/******************************************************************************/
+template <typename T>
+void SpikesInjectorPopulation<T>::close()
+{
+  spikesPort.close();
+  if (broadcast) viewerPort.close();
+  yarp::os::BufferedPort<T>::close();
+  //remember to also deallocate any memory allocated by this class
+  this->stop();//stop thread?
+}
+
+/******************************************************************************/
+template <typename T>
+void SpikesInjectorPopulation<T>::interrupt()
+{
+  spikesPort.interrupt();
+  if (broadcast) viewerPort.interrupt();
+  yarp::os::BufferedPort<T>::interrupt();
+}
+
 
 /******************************************************************************/
 template <typename T>
@@ -207,43 +227,6 @@ EventSpikesInjectorPopulation::EventSpikesInjectorPopulation(std::string label, 
   this->ev_height = ev_height;
 
 }
-// /******************************************************************************/
-// bool EventSpikesInjectorPopulation::open(const std::string &name, bool strictio, bool broadcast)
-// {
-//     //and open the input port
-//     if(strictio) this->setStrict();
-//     this->strictio = strictio;
-//     this->useCallback();
-//
-//     yarp::os::BufferedPort< ev::vBottle >::open(name + "/" +  this->population_label + "/" + this->population_type + ":i");
-//
-//     std::cout << "Open port " << name << "/" << this->population_label << "/" << this->population_type << ":i" << std::endl;
-//
-//     //if (broadcast) viewerPort.open(name + "/img:o");
-//     //this->broadcast = broadcast;
-//
-//     spikesPort.open(name + "/" +  this->population_label + "/" + this->population_type + ":o");
-//
-//     return true;
-// }
-
-/******************************************************************************/
-void EventSpikesInjectorPopulation::close()
-{
-  spikesPort.close();
-  //if (broadcast) spikesPort.close();
-  yarp::os::BufferedPort< ev::vBottle >::close();
-  //remember to also deallocate any memory allocated by this class
-}
-
-/******************************************************************************/
-void EventSpikesInjectorPopulation::interrupt()
-{
-  spikesPort.interrupt();
-  //if (broadcast) spikesPort.interrupt();
-  yarp::os::BufferedPort< ev::vBottle >::interrupt();
-}
-
 /******************************************************************************/
 void EventSpikesInjectorPopulation::onRead(ev::vBottle &bot)
 {
@@ -300,41 +283,6 @@ VisionSpikesInjectorPopulation::VisionSpikesInjectorPopulation(std::string label
 
   this->InputIDMap = createIDMap(v_height, v_width);
 }
-// /******************************************************************************/
-// bool VisionSpikesInjectorPopulation::open(const std::string &name, bool strictio, bool broadcast)
-// {
-//     //and open the input port
-//     if(strictio) this->setStrict();
-//     this->strictio = strictio;
-//     this->useCallback();
-//
-//     yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::open(name + "/" +  this->population_label + "/" + this->population_type + ":i");
-//
-//     if (broadcast) viewerPort.open(name + "/" +  this->population_label + "/" + this->population_type + ":image");
-//     this->broadcast = broadcast;
-//
-//     spikesPort.open(name + "/" +  this->population_label + "/" + this->population_type + ":o");
-//
-//     return true;
-// }
-
-/******************************************************************************/
-void VisionSpikesInjectorPopulation::close()
-{
-  spikesPort.close();
-  if (broadcast) viewerPort.close();
-  yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::close();
-  //remember to also deallocate any memory allocated by this class
-}
-
-/******************************************************************************/
-void VisionSpikesInjectorPopulation::interrupt()
-{
-  spikesPort.interrupt();
-  if (broadcast) viewerPort.interrupt();
-  yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> >::interrupt();
-}
-
 /******************************************************************************/
 void VisionSpikesInjectorPopulation::onRead(yarp::sig::ImageOf<yarp::sig::PixelBgr> &bot)
 {
@@ -411,44 +359,9 @@ std::vector<std::vector<int> > VisionSpikesInjectorPopulation::createIDMap(int h
 /******************************************************************************/
 // AUDIO_SPIKES_INJECTOR_POPULATION
 /******************************************************************************/
-AudioSpikesInjectorPopulation::AudioSpikesInjectorPopulation(std::string label, std::string type, int pop_width, int pop_height, std::string source, bool strict, bool broadcast) : SpikesInjectorPopulation(label, type, pop_width, pop_height, source) {
+AudioSpikesInjectorPopulation::AudioSpikesInjectorPopulation(std::string label, std::string type, int pop_width, int pop_height, std::string source, bool strict, bool broadcast) : SpikesInjectorPopulation(label, type, pop_width, pop_height, source, broadcast) {
 
 }
-// /******************************************************************************/
-// bool AudioSpikesInjectorPopulation::open(const std::string &name, bool strictio, bool broadcast)
-// {
-//     //and open the input port
-//     if(strictio) this->setStrict();
-//     this->strictio = strictio;
-//     this->useCallback();
-//
-//     yarp::os::BufferedPort< yarp::os::Bottle >::open(name + "/" +  this->population_label + "/" + this->population_type + ":i");
-//
-//     //if (broadcast) viewerPort.open(name + "/img:o");
-//     //this->broadcast = broadcast;
-//
-//     spikesPort.open(name + "/" +  this->population_label + "/" + this->population_type + ":o");
-//
-//     return true;
-// }
-
-/******************************************************************************/
-void AudioSpikesInjectorPopulation::close()
-{
-  spikesPort.close();
-  //if (broadcast) spikesPort.close();
-  yarp::os::BufferedPort< yarp::os::Bottle >::close();
-  //remember to also deallocate any memory allocated by this class
-}
-
-/******************************************************************************/
-void AudioSpikesInjectorPopulation::interrupt()
-{
-  spikesPort.interrupt();
-  //if (broadcast) spikesPort.interrupt();
-  yarp::os::BufferedPort< yarp::os::Bottle >::interrupt();
-}
-
 /******************************************************************************/
 void AudioSpikesInjectorPopulation::onRead(yarp::os::Bottle &bot)
 {

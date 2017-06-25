@@ -43,6 +43,7 @@ public:
   virtual void receive_spikes(char *label, int time, int n_spikes, int* spikes);
 
   void startSpikesInterface();
+  //void connectSpikesInterfacetoPorts();
 
 
 private:
