@@ -119,15 +119,19 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
                          yarp::os::Value(19999),
                          "network input width").asInt();
 
-    std::cout << "Configure Spynnaker Live Spikes Connection:  "
+    std::cout << "Configuring Spynnaker Live Spikes Connection:  "
               << moduleName
               << std::endl;
 
-    bool ioSuccess = false;
+    // optional variable for not using the live spinnaker IO
+    bool spinn = rf.check("no_spinnaker") &&
+            rf.check("no_spinnaker", yarp::os::Value(true)).asBool();
 
-    ioSuccess = initialise(moduleName, wait, (char*) local_host, local_port, absolute_file_path);
+    if (!spinn) {
+      spinn = initialise(moduleName, wait, (char*) local_host, local_port, absolute_file_path);
+    }
 
-    return ioSuccess;
+    return spinn;
 }
 
 /******************************************************************************/
@@ -154,26 +158,6 @@ bool SpinnakerInterface::initialise(std::string spinnName, bool wait, char *loca
         RECV_LABELS.push_back(pop_label);
       }
     }
-
-    // for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
-    //
-    //   std::string label_name(it->second->getPopLabel());
-    //   char *pop_label = new char[label_name.length() + 1];
-    //   std::strcpy(pop_label, label_name.c_str());
-    //
-    //   if(strcmp(it->second->getPopType().c_str(),"injector")==0){
-    //     //char const* label = "LIP_0";
-    //     //SEND_LABELS.push_back((char*)it->second->getPopLabel().c_str());
-    //     SEND_LABELS.push_back(pop_label);
-    //     //SEND_LABELS.push_back((*labels)[i]);
-    //     //std::cout << "LABELs: " << SEND_LABELS.back() << std::endl;
-    //   }
-    //   if(strcmp(it->second->getPopType().c_str(),"receiver")==0){
-    //     RECV_LABELS.push_back(pop_label);
-    //     //std::cout << "LABELs: " << RECV_LABELS.back() <<  std::endl;
-    //   }
-    //   //std::cout << "LABEL: " << (char*)it->second->getPopLabel().c_str() << " " << (char*)it->second->getPopType().c_str() << std::endl;
-    // }
 
     char* send_labels[SEND_LABELS.size()];
     std::copy(SEND_LABELS.begin(), SEND_LABELS.end(), send_labels);
@@ -210,24 +194,6 @@ bool SpinnakerInterface::initialise(std::string spinnName, bool wait, char *loca
         std::cout << "add receive callback for " << label_name << std::endl;
       }
     }
-
-    // for (std::map<std::string, SpikesPopulation*>::iterator it = spikes.begin(); it!=spikes.end(); ++it) {
-    //   std::string label_name(it->second->getPopLabel());
-    //   char *pop_label = new char[label_name.length() + 1];
-    //   std::strcpy(pop_label, label_name.c_str());
-    //   //this->connection->add_initialize_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
-    //   this->connection->add_initialize_callback(pop_label, spikes_interface);
-    //   if( strcmp(it->second->getPopType().c_str(),"injector")==0 ){
-    //     //this->connection->add_start_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
-    //     this->connection->add_start_callback(pop_label, spikes_interface);
-    //     std::cout << "add start callback for " << label_name << std::endl;
-    //   }
-    //   if( strcmp(it->second->getPopType().c_str(),"receiver")==0 ) {
-    //     //this->connection->add_receive_callback((char*)it->second->getPopLabel().c_str(), spikes_interface);
-    //     this->connection->add_receive_callback(pop_label, spikes_interface);
-    //     std::cout << "add receive callback for " << label_name << std::endl;
-    //   }
-    // }
 
     if (absolute_file_path != NULL) {
       this->connection->set_database(absolute_file_path);
@@ -270,6 +236,7 @@ bool SpinnakerInterface::respond(const yarp::os::Bottle& command, yarp::os::Bott
 
   if (command.get(0).asString() == "help") {
     reply.addString("help: start (This will start live spikes when database is ready)");
+    reply.addString("help: connect (This will connect spikes port to source)");
     reply.addString("help: quit ");
   } else {
     reply.addString("Got " + command.get(0).asString() + " command ...");
@@ -280,6 +247,9 @@ bool SpinnakerInterface::respond(const yarp::os::Bottle& command, yarp::os::Bott
     } else if (command.get(0).asString() == "start") {
       spikes_interface->startSpikesInterface();
       reply.addString("Ready to start the simulation ... ");
+    } else if (command.get(0).asString() == "connect") {
+      spikes_interface->connectSourcePorts();
+      reply.addString("Connecting ports ... ");
     } else {
       reply.addString("command not recognised");
     }
@@ -421,5 +391,22 @@ void SpikesCallbackInterface::startSpikesInterface() {
   pthread_mutex_unlock(&(this->start_mutex));
 }
 
+/******************************************************************************/
+void SpikesCallbackInterface::connectSourcePorts() {
+
+  for (auto const & mp : spikes_structure) {
+    //std::string label_name(mp.first);
+    //char *pop_label = new char[label_name.length() + 1];
+    //std::strcpy(pop_label, label_name.c_str());
+
+    if(strcmp(mp.second->getPopType().c_str(),"injector")==0){
+      mp.second->connectToSourcePort();
+    }
+    //if(strcmp(mp.second->getPopType().c_str(),"receiver")==0){
+      //RECV_LABELS.push_back(pop_label);
+    //}
+  }
+
+}
 
 //empty line to make gcc happy

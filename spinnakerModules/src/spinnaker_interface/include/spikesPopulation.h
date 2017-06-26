@@ -45,9 +45,11 @@ public:
   virtual bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort)=0;
   virtual void spikesFromSpinnaker(int time, int n_spikes, int* spikes)=0;
   virtual std::vector<int> spikesToSpinnaker()=0;
+  virtual bool connectToSourcePort()=0;
 
   void run();
   bool threadInit();
+
 
 protected:
   bool connectSpikePortToCallbackPort(yarp::os::BufferedPort<yarp::os::Bottle>* readPort);
@@ -77,6 +79,7 @@ public:
   bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort);
   void spikesFromSpinnaker(int time, int n_spikes, int* spikes);
   virtual std::vector<int> spikesToSpinnaker();
+  virtual bool connectToSourcePort();
 
 private:
 
@@ -97,6 +100,7 @@ public:
   bool open(const std::string &name, bool strictio, bool broadcast);
   void    close();
   void    interrupt();
+  bool connectToSourcePort(/*const std::string &name*/);
 
 protected:
   std::string sourcePortName;

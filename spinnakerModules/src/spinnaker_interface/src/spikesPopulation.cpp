@@ -95,6 +95,11 @@ std::vector<int> SpikesReceiverPopulation::spikesToSpinnaker(){
   return std::vector<int>();
 }
 /******************************************************************************/
+bool SpikesReceiverPopulation::connectToSourcePort(){
+  return false;
+}
+
+/******************************************************************************/
 bool SpikesReceiverPopulation::setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort)
 {
   //if (broadcast)
@@ -130,7 +135,7 @@ SpikesInjectorPopulation<T>::SpikesInjectorPopulation(std::string label, std::st
 template <typename T>
 bool SpikesInjectorPopulation<T>::setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort) {
   if (this->open(moduleName, broadcast, strictio)) {
-    if ( yarp::os::Network::connect(sourcePortName.c_str(), yarp::os::BufferedPort< T >::getName(), "udp") ) {
+    if ( connectToSourcePort() ) {
       return connectSpikePortToCallbackPort(readPort);
     }
   }
@@ -176,7 +181,12 @@ void SpikesInjectorPopulation<T>::interrupt()
   if (broadcast) viewerPort.interrupt();
   yarp::os::BufferedPort<T>::interrupt();
 }
-
+/******************************************************************************/
+template <typename T>
+bool SpikesInjectorPopulation<T>::connectToSourcePort()
+{
+  return yarp::os::Network::connect(sourcePortName.c_str(), yarp::os::BufferedPort< T >::getName(), "udp");
+}
 
 /******************************************************************************/
 template <typename T>
