@@ -86,6 +86,28 @@ private:
 
 };
 
+class SalientSpikesReceiverPopulation : public SpikesReceiverPopulation {
+
+public:
+  SalientSpikesReceiverPopulation(std::string label, std::string type, int ret_width, int ret_height, int pop_width, int pop_height, bool strict=true, bool broadcast=true);
+
+  //bool setPopulationPorts(std::string moduleName, yarp::os::BufferedPort<yarp::os::Bottle>* readPort);
+  void spikesFromSpinnaker(int time, int n_spikes, int* spikes);
+  //virtual std::vector<int> spikesToSpinnaker();
+  //virtual bool connectToSourcePort();
+  void coordMappingArray(int input_x_array[], int input_y_array[], int width, int height);
+
+private:
+  int retina_width;
+  int retina_height;
+  int source_img_width;  // = 320; //128
+  int source_img_height; // = 240; //128;
+
+  int * lip_x_array;
+  int * lip_y_array;
+
+};
+
 template <typename T>
 class SpikesInjectorPopulation : public SpikesPopulation, public yarp::os::BufferedPort< T >
 {
@@ -157,6 +179,31 @@ private:
   std::vector<std::vector<int> > InputIDMap;
 
 };
+
+class ColourVisionSpikesInjectorPopulation : public VisionSpikesInjectorPopulation  {
+
+public:
+  ColourVisionSpikesInjectorPopulation(std::string label, std::string type, int v_width, int v_height, int pop_width, int pop_height, std::string source="/icub/cam/left", bool strict=true, bool broadcast=false);
+
+  //bool    open(const std::string &name, bool strictio, bool broadcast=true);
+  //void    close();
+  //void    interrupt();
+  //this is the entry point to your main functionality
+  void    onRead(yarp::sig::ImageOf<yarp::sig::PixelBgr> &bot);
+
+private:
+  //bool flip;
+
+  //int v_polarity;
+  int v_width;
+  int v_height;
+
+  // Create a 2D vector to map x,y pos to a neuron ID
+  std::vector<std::vector<int> > createIDMap(int height, int width);
+  std::vector<std::vector<int> > InputIDMap;
+
+};
+
 
 class AudioSpikesInjectorPopulation : public SpikesInjectorPopulation < yarp::os::Bottle > {
 

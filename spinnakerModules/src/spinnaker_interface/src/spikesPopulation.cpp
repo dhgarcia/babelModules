@@ -115,6 +115,115 @@ bool SpikesReceiverPopulation::setPopulationPorts(std::string moduleName, yarp::
 }
 
 /******************************************************************************/
+// SPIKES_RECEIVER_POPULATION
+/******************************************************************************/
+SalientSpikesReceiverPopulation::SalientSpikesReceiverPopulation(std::string label, std::string type, int ret_width, int ret_height, int robot_img_width, int robot_img_height, bool strict, bool broadcast) : SpikesReceiverPopulation(label, type, strict, broadcast) {
+
+
+  retina_width = ret_width;
+  retina_height = ret_height;
+  this->setPopSize(retina_width/1.6/2, retina_height/1.6/2);
+
+  source_img_width = robot_img_width;
+  source_img_height = robot_img_height;
+
+  //InputIDMap = createIDMap(retina_height, retina_width);
+
+  lip_x_array = new int [this->population_size[0]*this->population_size[1]];
+  lip_y_array = new int [this->population_size[0]*this->population_size[1]];
+  coordMappingArray(lip_x_array, lip_y_array, this->population_size[0], this->population_size[1]);
+
+
+}
+/******************************************************************************/
+void SalientSpikesReceiverPopulation::spikesFromSpinnaker(int time, int n_spikes, int* spikes){
+
+  yarp::os::Bottle& posList = this->spikesPort.prepare();
+  posList.clear();
+
+  if (n_spikes >= 2) return; //skip if we get more than one salient point?
+
+  int nrnId = spikes[0];
+
+  int lip_mag = floor(((float)retina_width/(float)retina_height)); 
+  // Use the mag to convert from LIP coords to input coords
+  double x_attend = double(lip_x_array[nrnId]*lip_mag);
+  double y_attend = double(lip_y_array[nrnId]*lip_mag);
+  std::cout << "Attend to position (input space) " << x_attend << "," << y_attend << std::endl;//<< lip_mag << "," << x_attend << "," << y_attend << std::endl;
+
+  // calculate the magnification from input layer in the neural network
+  // to iCub 320x240 view
+  double source_view_xmag = (int)source_img_width/(int)retina_width;
+  double source_view_ymag = (int)source_img_height/(int)retina_height;
+  // Use the mag to convert input coords to iCub view coords
+  double loc_x = x_attend*source_view_xmag;
+  double loc_y = y_attend*source_view_ymag;
+  std::cout << "Location to attend is: " << loc_x << "," << loc_y << std::endl;
+
+  posList.addDouble(loc_x);
+  posList.addDouble(loc_y);
+  posList.addDouble(1.0);
+
+  if(strictio) this->spikesPort.writeStrict();
+  else this->spikesPort.write();
+
+}
+/******************************************************************************/
+// std::vector<std::vector<int> > SalientSpikesReceiverPopulation::createIDMap(int height, int width){
+//   // Create a 2D vector to map x,y pos to a neuron ID
+//
+//   std::vector<std::vector<int> > IDMap;
+//   int current_nrn = 0;
+//   int i,j;
+//
+//   // set 'row' dimension
+//   IDMap.resize(height);
+//
+//   // set 'column' dimension for each row and
+//   // set the neuron ID for each element
+//
+//   // When assigning neuron IDs we have to be careful
+//   // to match the coordinate system of the network.
+//   // For the PyNN version nrn 0 is top left hand corner
+//   // and increments across the row and down the column
+//   // This matches exactly the image x,y coordinates
+//
+//   // i is the row coord and j is the x coord
+//   for( int i=0; i< height; i++){
+//     IDMap[i].resize(width);
+//     for(int j=0; j < width; j++){
+//       //printf("%d %d %d\n", i,j, current_nrn);
+//       IDMap[i][j] = current_nrn;
+//       current_nrn++;
+//     }
+//   }
+//
+//   return IDMap;
+// }
+
+/******************************************************************************/
+void SalientSpikesReceiverPopulation::coordMappingArray(int input_x_array[], int input_y_array[], int width, int height){
+  int startx = 0;
+  int starty = 0;
+  //int input_x_array [width*height];
+  //int input_y_array [width*height];
+
+  for(int n = 0; n < (width*height); n++){
+    input_x_array[n] = startx;
+    input_y_array[n] = starty;
+    //printf("%d %d %d\n", startx,starty, n);
+    if (startx == (width - 1)){
+      startx = 0;
+      starty = starty + 1;
+    } else {
+      startx = startx + 1;
+    }
+  }
+
+}
+
+
+/******************************************************************************/
 // SPIKES_INJECTOR_POPULATION
 /******************************************************************************/
 template <typename T>
@@ -364,6 +473,63 @@ std::vector<std::vector<int> > VisionSpikesInjectorPopulation::createIDMap(int h
   return IDMap;
 }
 
+
+/******************************************************************************/
+// COLOUR_VISION_SPIKES_INJECTOR_POPULATION
+/******************************************************************************/
+ColourVisionSpikesInjectorPopulation::ColourVisionSpikesInjectorPopulation(std::string label, std::string type, int v_width, int v_height, int pop_width, int pop_height, std::string source, bool strict, bool broadcast) : VisionSpikesInjectorPopulation(label, type, v_width, v_height, pop_width, pop_height, source, strict, broadcast) {
+
+}
+/******************************************************************************/
+void ColourVisionSpikesInjectorPopulation::onRead(yarp::sig::ImageOf<yarp::sig::PixelBgr> &bot)
+{
+
+  cv::Mat img = cv::cvarrToMat((IplImage *)bot.getIplImage());
+  cv::resize(img, img, cv::Size(population_size[0], population_size[1]));
+
+  // Split image to colour channels
+  cv::Mat imgR, imgG, imgB;
+  cv::Mat imgBGR[3];
+  cv::split(img, imgBGR);
+
+  /// Convert the image to Gray
+  cv::cvtColor( img, img, CV_BGR2GRAY );
+  cv::threshold( img, img, 0, 255, cv::THRESH_BINARY);
+
+
+
+  // Have to wrap OpenCV images back to yarp images first
+  yarp::sig::ImageOf<yarp::sig::PixelBgr>& yarpViewImage = viewerPort.prepare();
+  //if (broadcast) yarpViewImage = viewerPort.prepare();
+  IplImage iplFrame = IplImage( img );
+  yarpViewImage.wrapIplImage(&iplFrame);
+  // Write image to YARP viewer port and also out to data port
+  if (broadcast) viewerPort.write();
+
+  // prepare the ports for sending
+  yarp::os::Bottle& spikeList = spikesPort.prepare();
+  // Push the Neuron IDs of 'on' pixels to vector.
+  for (int x=0; x<population_size[0]; x++) {
+    for (int y=0; y<population_size[1]; y++) {
+      yarp::sig::PixelBgr& monopixel = yarpViewImage.pixel(x,y);
+      if (monopixel.r > 0 && monopixel.b > 0 && monopixel.g > 0 ) {
+        // The pixel is ON, so get neuron ID and push onto vector
+        int neuronID = InputIDMap[y][x];
+        spikeList.addInt(neuronID);
+      }
+    } // y pix loop
+  } // x pix loop
+
+
+  //connection->send_spikes(label, n_neuron_ids, send_full_keys);
+  //n_neuron_ids.clear();
+
+  //send on the processed image
+  if(strictio) spikesPort.writeStrict();
+  else spikesPort.write();
+  spikeList.clear();
+
+}
 
 
 /******************************************************************************/
