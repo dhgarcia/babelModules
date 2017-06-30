@@ -19,7 +19,7 @@
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
 
-#include <SpynnakerLiveSpikesConnection.h>
+#include <spinnakerIO/SpynnakerLiveSpikesConnection.h>
 
 //#include <vector>
 //#include <iterator>

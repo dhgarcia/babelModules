@@ -25,7 +25,7 @@ bool SpinnakerInterface::configure(yarp::os::ResourceFinder &rf)
     setName(moduleName.c_str());
 
     if ( !handlePort.open(getName()) ) {
-      std::cout << getName() << ":unale to open port" << '\n';
+      std::cout << getName() << ": unale to open port" << '\n';
       return false;
     }
     attach(handlePort);
@@ -242,7 +242,7 @@ bool SpinnakerInterface::respond(const yarp::os::Bottle& command, yarp::os::Bott
     reply.addString("Got " + command.get(0).asString() + " command ...");
 
     if (command.get(0).asString() == "quit") {
-      reply.addString("command not recognised");
+      reply.addString("Closing ... ");
       close(); //this must change?
     } else if (command.get(0).asString() == "start") {
       spikes_interface->startSpikesInterface();
